@@ -1,0 +1,22 @@
+#datacode
+dataCode: "gaffney" 
+
+#Path to output files
+outFolder: "/hpc/users/brophe01/mmQTL-pipeline/Test_output"
+
+#Matching RNA samples to DNA samples
+sampleKey: "/hpc/users/brophe01/mmQTL-pipeline/Test_data/gaffney_samplekey.txt" 
+
+#VCF file for cohort
+VCF: "/hpc/users/brophe01/mmQTL-pipeline/Test_data/ALL.chr.merged.vcf.gz"
+
+#Gene expression matrix for matrix (ex: TPM) 
+geneMatrix: "/hpc/users/brophe01/mmQTL-pipeline/Test_data/gaffney_genematrix.csv"
+
+#Gene annotation file (ex: Gencode) 
+geneAnno: "/hpc/users/brophe01/mmQTL-pipeline/Test_data/gencode_feature_annotation.txt"
+
+#peer values 
+PEER_values: 
+        - 5
+        - 10

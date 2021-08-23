@@ -1,0 +1,40 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(dplyr)
+library(tibble)
+library(stringr)
+library(tidyverse)
+library(readr)
+library(knitr)
+library(ggplot2)
+library(readxl)
+```
+
+
+```{r}
+annotations <- rtracklayer::import("/sc/arion/projects/ad-omics/data/references/hg38_reference/GENCODE/gencode.v38.primary_assembly/gencode.v38.primary_assembly.annotation.gtf")
+```
+
+```{r}
+df <- as.data.frame(annotations, row.names = NULL, optional = FALSE)
+```
+
+```{r}
+#need chr name, start pos, end pos, and gene name for feature annotation file
+df <- subset(df, select = c(seqnames, start, end, gene_id))
+```
+
+```{r}
+#change chr1 to 1
+df$seqnames <- gsub("^chr","",df$seqnames)
+```
+
+
+```{r}
+write_delim(df,"/hpc/users/brophe01/mmQTL-pipeline/Test_data/gencode_feature_annotation.txt", delim= " ")
+```
+

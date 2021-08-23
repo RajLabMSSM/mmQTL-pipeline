@@ -1,0 +1,6 @@
+channels:
+  - bioconda
+dependencies:
+  - plink2=2.00a2.3
+  - bcftools=1.9
+  - samtools=1.9
