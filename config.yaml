@@ -1,22 +1,39 @@
 #datacode
 dataCode: "gaffney" 
 
+#Path to input files
+inFolder: "/hpc/users/brophe01/mmQTL-pipeline/example/"
+
 #Path to output files
 outFolder: "/hpc/users/brophe01/mmQTL-pipeline/Test_output"
 
 #Matching RNA samples to DNA samples
-sampleKey: "/hpc/users/brophe01/mmQTL-pipeline/Test_data/gaffney_samplekey.txt" 
+sampleKey: "/sc/arion/projects/als-omics/microglia_isoseq/Erica/gaffney_mmqtl_data/gaffney_samplekey.txt" 
 
 #VCF file for cohort
-VCF: "/hpc/users/brophe01/mmQTL-pipeline/Test_data/ALL.chr.merged.vcf.gz"
+VCF: "/sc/arion/projects/als-omics/microglia_isoseq/Erica/gaffney_mmqtl_data/ALL.chr.merged.vcf.gz"
 
 #Gene expression matrix for matrix (ex: TPM) 
-geneMatrix: "/hpc/users/brophe01/mmQTL-pipeline/Test_data/gaffney_genematrix.csv"
+geneMatrix: "/sc/arion/projects/als-omics/microglia_isoseq/Erica/gaffney_mmqtl_data/gaffney_genematrix.csv"
 
 #Gene annotation file (ex: Gencode) 
-geneAnno: "/hpc/users/brophe01/mmQTL-pipeline/Test_data/gencode_feature_annotation.txt"
+geneAnno: "/sc/arion/projects/als-omics/microglia_isoseq/Erica/gaffney_mmqtl_data/gencode_feature_annotation.txt"
 
 #peer values 
 PEER_values: 
         - 5
         - 10
+
+
+#covariateFile
+covariateFile: "/hpc/users/brophe01/mmQTL-pipeline/Test_data/gaffney_covariates.txt"
+
+#dataKey for running pipeline per dataset
+dataKey: "" 
+
+#any additional covariates given by the user
+covariateFile: ""
+
+#input dataKey 
+dataKey: "/hpc/users/brophe01/mmQTL-pipeline/example/dataKey.csv" 
+

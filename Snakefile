@@ -8,12 +8,15 @@
 #5. Normalised gene expression matrix
 #6. Covariate matrix
 #7. Combine Covariate matrix
-#7. run mmQTL   
+#8. Harmonize phenotype input files across dataset
+#9. Run mmQTL for features across datasets in dataKey
+#10. Collate all mmQTL results   
 
 import glob
 import pandas as pd 
 import os 
 
+inFolder = config['inFolder']
 outFolder = config['outFolder']
 sampleKey = config['sampleKey']
 VCF = config['VCF']
@@ -29,18 +32,25 @@ genename = matrix['Gene']
 
 prefix =  dataCode
 
-
+covariateFile = config['covariateFile']
 
 ####################################################
 
 SNAKEDIR = os.path.dirname(workflow.snakefile) + "/"
 
-#run per each gene, file of gene names? 
+chromosomes = [i for i in range(1,23)]
+
+#Pipeline will run for each dataset in the dataKey created by the user
+dataKey = config['dataKey']
+meta = pd.read_csv(dataKey, sep = ';') 
+dataset = meta['dataset']
+metadata_dict = meta.set_index("dataset").T.to_dict()
+#expand on PEER
 
 rule all:
-    input:
-        #expand(outFolder + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.{group_by}.combined_covariates.txt", PEER_N = PEER_values, dataset = dataset)
-        expand(outFolder + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.PEER_covariates.txt", PEER_N = PEER_values)
+    output:
+        #expand(outFolder + "/peer{PEER_N}/" + dataCode + "_peer{PEER_N}.combined_covariates.txt", PEER_N = PEER_values)
+        expand(outFolder + "/peer{PEER_N}/" + dataCode + "_peer{PEER_N}.PEER_covariates.txt", PEER_N = PEER_values)
  
 #1. Make sample key 
 
@@ -127,15 +137,17 @@ rule geneNORM:
 
 
 #6. Covariate matrix
+#expand on PEER wildcard
 
 rule runPEER:
     input:
+        expand(outFolder + "/{dataset}/" + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.PEER_covariates.txt", dataset = dataset, PEER_N = PEER_values, allow_missing=True ),
         phenotype_matrix = prefix + ".expression.bed.gz" 
     params:
         script = "scripts/run_PEER.R",
         num_peer = "{PEER_N}"
     output:
-        outFolder + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.PEER_covariates.txt"
+        outFolder + "/{dataset}/" + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.PEER_covariates.txt"
     run:
         if int(wildcards.PEER_N) > 0:
             shell("ml R/3.6.0; ")
@@ -147,12 +159,11 @@ rule runPEER:
 
 rule combineCovariates:
     input:
-        pheno = prefix + ".phenotype.tensorQTL.{group_by}.bed.gz",
-        geno =  genotypePCs,
-        peer =  outFolder + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.PEER_covariates.txt",
+        pheno = prefix + ".expression.bed.gz",
+        peer =  outFolder + "/{dataset}/" + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.PEER_covariates.txt",
         covariates = covariateFile
     output:
-        cov_df = outFolder + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.{group_by}.combined_covariates.txt"
+        cov_df = outFolder + "/{dataset}/" + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.combined_covariates.txt"
     params:
         num_peer = "{PEER_N}",
         script = "scripts/combine_covariates.py",
@@ -164,8 +175,8 @@ rule combineCovariates:
         else:
             peerFile = ""
         shell("python {params.script} {peerFile} \
-            --genotype_pcs {input.geno} {input.covariates} \
-            {outFolder}peer{params.num_peer}/{dataCode}_peer{params.num_peer}.{wildcards.group_by}")
+            --covariates {input.covariates} \
+            {outFolder}peer{params.num_peer}/{dataCode}_peer{params.num_peer}")
         # make sure combined covariate file has column names in same order as phenotype file
         phenotype_df = pd.read_csv(input.pheno, sep='\t', dtype={'#chr':str, '#Chr':str})
         covariate_df = pd.read_csv(output.cov_df, sep = "\t" )
@@ -174,27 +185,54 @@ rule combineCovariates:
         covariate_df.to_csv(output.cov_df, header = True, index = False, sep = "\t")
 
 #8. Harmonize phenoype files so that each file has the same features
+#expand on dataset wildcard 
+##this is the pheno file that will go into the path for pheno_file in the runMMQTL rule
 
 rule phenoUnion: 
     input:
-    output: 
-    params: 
+        expand(outFolder + "/{dataset}", dataset = dataset, allow_missing=True ),
+        pheno = prefix + ".expression.bed.gz"
+    output:
+         prefix + "harmonized.expression.bed.gz" 
+    params:
+        script = "scripts/pheno_harmonize.R"
     shell: 
+        "ml R 3.6;"
+        "Rscript {params.script} {input.pheno}"
 
-
-#9. run mmQTL 
+#9. Run mmQTL 
+#expand on PEER and phenotype
 
 rule runMMQTL: 
     input:
-        pheno_file = "/{outFolder}/{input.phenotype}",
-        geno_file = "/{outFolder}/{input.genotype}",
-        GRM_file = "/{outFolder}/{input.GRM}",
-        feature_annotation = prefix + "_positions.txt"
+        #expand on phenotype and PEER
+        expand(outFolder + "/{dataset}/" + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.PEER_covariates.txt", dataset = dataset, PEER_N = PEER_values, allow_missing=True ),
+        pheno_file = lambda wildcards: os.path.join(inFolder,  metadata_dict[wildcards.dataset]["Phenotype"]),
+        geno_file = lambda wildcards: os.path.join(inFolder, metadata_dict[wildcards.dataset]["Genotype"]),
+        GRM_file = lambda wildcards: os.path.join(inFolder, metadata_dict[wildcards.dataset]["GRM"]),
+        feature_annotation = lambda wildcards: os.path.join(inFolder, metadata_dict[wildcards.dataset]["Feature_annotation"]),
+        covariate_file = lambda wildcards: os.path.join(inFolder, metadata_dict[wildcards.dataset]["Covariate_file"]),
     output:
-        outFolder + "/{gene.name}" 
+        #mmQTL output files 
+        directory( outFolder + "/{dataset}/" + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.PEER_covariates.txt" + "{CHROM}")
     params:
         #script = "scripts/"
         #run mmQTL through src and outputs   
-    shell: 
+    shell:
+        "cd /sc/arion/projects/ad-omics/data/software/MMQTL/MMQTL"
         "MMQTL23 -b  -P  pheno_file.text   -Z  geno_file.txt   -R GRM_file.txt \
         -a feature_annotation.bed  -A random  -C covariate_matrix.csv  -gene  gene_name"
+
+#10. Collate mmQTL results
+
+rule mmQTLcollate: 
+    input:
+        expand(outFolder + "/{dataset}/" + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.PEER_covariates.txt" + "{CHROM}", dataset = dataset, PEER_N = PEER_values, CHROM = chromosomes, allow_missing=True )
+    output:
+        directory( outFolder + "/{dataset}/" + "peer{PEER_N}/" + dataCode + "_peer{PEER_N}.PEER_covariates.txt")
+    params:
+        script = "scripts/merge_results.R" 
+    shell:
+        "ml R 3.6;"
+        "Rscript {params.script}" 
+
