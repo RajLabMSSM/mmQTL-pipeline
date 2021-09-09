@@ -86,7 +86,7 @@ rule VCFtoPLINK:
     run:
         vcf = metadata_dict[wildcards.DATASET]["genotypes"]
         shell("ml tabix; \
-            tabix -l {input.VCF} > {output.chr_list}"
+            tabix -l {vcf} > {output.chr_list}"
         )
         shell("ml plink2; \
         plink2 --make-bed \
@@ -94,9 +94,10 @@ rule VCFtoPLINK:
         --max-alleles 2 \
         --keep {input.participants} \
         --maf 0.01 \
+        --freq \
         --allow-extra-chr \
         --max-maf 0.9975 \
-        --vcf {input.vcf} \
+        --vcf {vcf} \
         --out {params.stem}"
         )
 
@@ -110,7 +111,7 @@ rule generateGRM:
     params:
         stem = prefix + "_genotypes"
     shell:
-        "ml plink; "
+        "ml plink2; "
         "plink2 --bfile {params.stem} "
         "--read-freq {input.genotypes} "
         "--make-grm-list -out {params.stem}"
