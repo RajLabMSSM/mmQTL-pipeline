@@ -34,7 +34,9 @@ if (grepl('.bed$', argv$expr.file) || grepl('.bed.gz$', argv$expr.file)) {
     df <- read.table(argv$expr.file, sep="\t", nrows=nrows, header=TRUE, check.names=FALSE, comment.char="")
     row.names(df) <- df[, 4]
 # assume bed.gz has 6 metadata columns , not 4
-    df <- df[, 7:ncol(df)]
+
+## mmQTL - pheno.tsv.gz has 1 metadata column (feature)
+    df <- df[, 2:ncol(df)]
 } else {
     df <- read.table(argv$expr.file, sep="\t", nrows=nrows, header=TRUE, check.names=FALSE, comment.char="", row.names=1)
 }

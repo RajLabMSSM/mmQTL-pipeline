@@ -18,6 +18,7 @@ import os
 
 #inFolder = config['inFolder']
 outFolder = config['outFolder']
+phenoMeta = config['phenoMeta']
 #VCF = config['VCF']
 #VCFstem = VCF.split(".vcf.gz")[0]
 #geneMatrix = config['geneMatrix']
@@ -129,7 +130,7 @@ rule normalise_pheno:
     run:
         pheno = metadata_dict[wildcards.DATASET]["phenotypes"]
         sk = metadata_dict[wildcards.DATASET]["sample_key"]
-        pheno_meta = metadata_dict[wildcards.DATASET]["phenotype_info"]
+        #pheno_meta = metadata_dict[wildcards.DATASET]["phenotype_info"]
         threshold = 1,
         fraction = 0.5,
         group = False
@@ -164,12 +165,12 @@ rule runPEER:
     params:
         script = "scripts/run_PEER.R",
     output:
-        prefix  + "_PEER_covariates.txt"
+        prefix  + ".PEER_covariates.txt"
     run:
         PEER_N = metadata_dict[wildcards.DATASET]["PEER"]
         if int(PEER_N) > 0:
             shell("ml R/3.6.0; ")
-            shell("Rscript {params.script} {input} {outFolder}peer{params.num_peer}/{dataCode}_peer{params.num_peer} {params.num_peer}")
+            shell("Rscript {params.script} {input} {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} {PEER_N}")
         else:
             shell("touch {output}")
 
@@ -178,7 +179,7 @@ rule runPEER:
 rule combineCovariates:
     input:
         pheno = prefix + "_pheno.tsv.gz",
-        peer = prefix  + "_PEER_covariates.txt"
+        peer = prefix  + ".PEER_covariates.txt"
         #peer =  outFolder + "/{dataset}/"  + dataCode + "PEER_covariates.txt",
         #covariates = covariateFile
     output:
@@ -205,21 +206,24 @@ rule combineCovariates:
 #expand on dataset wildcard 
 ##this is the pheno file that will go into the path for pheno_file in the runMMQTL rule
 
-rule phenoUnion: 
+rule harmonise_phenotypes: 
     input:
-        pheno = expand(prefix + "_pheno.tsv.gz", DATASET = datasets, allow_missing=True ),
+        pheno_meta = phenoMeta,
+        pheno = expand(prefix + "_pheno.tsv.gz", DATASET = datasets ),
     output:
-         expand(mmQTL_folder +  "{DATASET}_harmonized.expression.bed.gz", DATASET = datasets)
+         expand(mmQTL_folder +  "{DATASET}_pheno.harmonised.tsv.gz", DATASET = datasets),
+         mmQTL_folder + "phenotype_metadata.tsv"
     params:
-        script = "scripts/pheno_harmonize.R"
+        script = "scripts/pheno_harmonize.R",
+        prefix = mmQTL_folder
     shell: 
-        "ml R 3.6;"
-        "Rscript {params.script} {input.pheno}"
+        "ml R/4.0.3;"
+        "Rscript {params.script} --prefix {params.prefix} --metadata {input.pheno_meta}  {input.pheno}"
 
 ## prepare inputs for mmQTL
 rule prep_mmQTL:
         input:
-           pheno = expand(mmQTL_folder +  "{DATASET}_harmonized.expression.bed.gz", DATASET = datasets),
+           pheno = expand(mmQTL_folder +  "{DATASET}_pheno.harmonised.tsv.gz", DATASET = datasets),
            geno = expand(prefix + "_genotypes.fam", DATASET = datasets),
            cov = expand(prefix + "_combined_covariates.txt", DATASET = datasets),
            grm = expand(prefix + "_genotypes.grm", DATASET = datasets)

@@ -2,7 +2,7 @@
 dataCode: "example"
 
 dataKey: "example/example_data_key.tsv" 
-
+phenoMeta: "example/example_gene_info.txt"
 outFolder: "results/"
 
 #Path to input files
