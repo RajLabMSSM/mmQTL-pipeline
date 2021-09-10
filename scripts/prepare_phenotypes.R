@@ -55,6 +55,7 @@ pheno <- pheno[, c(names(pheno)[1], sk$sample_id) ]
 
 message(" * ", ncol(pheno), " samples kept from sample key " )
 
+# remove features from chromosomes not present in VCF - TODO
 
 # rename columns from samples to donors (participant_id in sample key)
 names(pheno) <- c("feature", sk$participant_id )
@@ -76,7 +77,7 @@ message(" * ", nrow(pheno), " features pass missingness thresholds" )
 
 meta <- meta[ row.names(pheno), ]
 
-# if requested, divide each feature by the sum of the group (for tuQTLs, SUPPA and txrevise)
+# if requested, divide each feature by the sum of the group (for tuQTLs, SUPPA and txrevise) - TODO
 if( group == TRUE){
     # 
 }

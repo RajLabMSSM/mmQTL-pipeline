@@ -52,6 +52,12 @@ prefix = outFolder + "{DATASET}/{DATASET}"
 
 mmQTL_folder = outFolder + "mmQTL/"
 
+def write_list_to_file(my_list, file_name):
+    with open(file_name, 'w') as f:
+        for item in my_list:
+            full_path = os.path.join(SNAKEDIR, item)
+            f.write("%s\n" % full_path)
+
 rule all:
     input:
         #expand(outFolder + "/peer{PEER_N}/" + dataCode + "combined_covariates.txt", PEER_N = PEER_values)
@@ -127,6 +133,7 @@ rule normalise_pheno:
     output:
         prefix + "_pheno.tsv.gz"
     params:
+        pheno_meta = phenoMeta,
         script = "scripts/prepare_phenotypes.R"
     run:
         pheno = metadata_dict[wildcards.DATASET]["phenotypes"]
@@ -143,7 +150,7 @@ rule normalise_pheno:
         Rscript {params.script} \
         --key {sk} \
         --pheno_matrix {pheno} \
-        --pheno_meta {pheno_meta} \
+        --pheno_meta {params.pheno_meta} \
         {group_string} \
         --threshold {threshold} \
         --fraction {fraction} \
@@ -182,6 +189,7 @@ rule combineCovariates:
         pheno = prefix + "_pheno.tsv.gz",
         peer = prefix  + ".PEER_covariates.txt"
         #peer =  outFolder + "/{dataset}/"  + dataCode + "PEER_covariates.txt",
+        #covariates = ""
         #covariates = covariateFile
     output:
         cov_df = prefix + "_combined_covariates.txt"
@@ -193,9 +201,9 @@ rule combineCovariates:
             peerFile = "--add_covariates " + input.peer
         else:
             peerFile = ""
-        shell("python {params.script} {peerFile} \
-            --covariates {input.covariates} \
-            {outFolder}peer{params.num_peer}/{dataCode}_peer{params.num_peer}")
+        #shell("python {params.script} {peerFile} \
+        #    --covariates {input.covariates} \
+        #    {outFolder}peer{params.num_peer}/{dataCode}_peer{params.num_peer}")
         # make sure combined covariate file has column names in same order as phenotype file
         phenotype_df = pd.read_csv(input.pheno, sep='\t', dtype={'#chr':str, '#Chr':str})
         covariate_df = pd.read_csv(output.cov_df, sep = "\t" )
@@ -212,7 +220,7 @@ rule harmonise_phenotypes:
         pheno_meta = phenoMeta,
         pheno = expand(prefix + "_pheno.tsv.gz", DATASET = datasets ),
     output:
-         expand(mmQTL_folder +  "{DATASET}_pheno.harmonised.tsv.gz", DATASET = datasets),
+         expand(mmQTL_folder +  "{DATASET}_pheno.harmonised.tsv", DATASET = datasets),
          mmQTL_folder + "phenotype_metadata.tsv"
     params:
         script = "scripts/pheno_harmonize.R",
@@ -224,30 +232,34 @@ rule harmonise_phenotypes:
 ## prepare inputs for mmQTL
 rule prep_mmQTL:
         input:
-           pheno = expand(mmQTL_folder +  "{DATASET}_pheno.harmonised.tsv.gz", DATASET = datasets),
+           pheno = expand(mmQTL_folder +  "{DATASET}_pheno.harmonised.tsv", DATASET = datasets),
            geno = expand(prefix + "_genotypes.fam", DATASET = datasets),
-           cov = expand(prefix + "_combined_covariates.txt", DATASET = datasets),
+           cov = expand(prefix + ".PEER_covariates.txt", DATASET = datasets),
            grm = expand(prefix + "_genotypes.grm", DATASET = datasets)
         output:
-           pheno_txt = mmQTL_folder + "pheno_list.txt"
+           pheno_txt = mmQTL_folder + "pheno_list.txt",
+           geno_txt = mmQTL_folder + "geno_list.txt",
+           grm_txt = mmQTL_folder + "grm_list.txt",
+           cov_txt = mmQTL_folder + "cov_list.txt"
         run:
-           # python - write out lists of files
-           print('hello')
+           # for genotypes, remove file extension
+           plink_files = [ os.path.splitext(i)[0] for i in input.geno ]
+
+           write_list_to_file(input.pheno, output.pheno_txt)
+           write_list_to_file(plink_files, output.geno_txt)
+           write_list_to_file(input.grm, output.grm_txt)
+           write_list_to_file(input.cov, output.cov_txt) 
 
 #9. Run mmQTL 
 #expand on PEER and phenotype
 
 rule runMMQTL: 
     input:
-        pheno_txt = mmQTL_folder + "pheno_list.txt"
-        #mmQTL_folder + "harmonized.expression.bed.gz"
-        #expand on phenotype and PEER
-        #expand(outFolder + "/{dataset}/"  + dataCode + "PEER_covariates.txt", dataset = dataset, PEER_N = PEER_values, allow_missing=True ),
-        #pheno_file = lambda wildcards: os.path.join(inFolder,  metadata_dict[wildcards.dataset]["Phenotype"]),
-        #geno_file = lambda wildcards: os.path.join(inFolder, metadata_dict[wildcards.dataset]["Genotype"]),
-        #GRM_file = lambda wildcards: os.path.join(inFolder, metadata_dict[wildcards.dataset]["GRM"]),
-        #feature_annotation = lambda wildcards: os.path.join(inFolder, metadata_dict[wildcards.dataset]["Feature_annotation"]),
-        #covariate_file = lambda wildcards: os.path.join(inFolder, metadata_dict[wildcards.dataset]["Covariate_file"]),
+        pheno_txt = mmQTL_folder + "pheno_list.txt",
+        geno_txt = mmQTL_folder + "geno_list.txt",
+        grm_txt = mmQTL_folder + "grm_list.txt",
+        cov_txt = mmQTL_folder + "cov_list.txt",
+        pheno_meta = mmQTL_folder + "phenotype_metadata.tsv"
     output:
         #mmQTL output files 
         mmQTL_folder + "{CHROM}" + "_output.txt"
