@@ -37,7 +37,10 @@ prefix = outFolder + "/" + dataCode
 
 SNAKEDIR = os.path.dirname(workflow.snakefile) + "/"
 
-chromosomes = ["chr" + str(i) for i in range(1,23)]
+#chromosomes = ["chr" + str(i) for i in range(1,23)]
+
+N_CHUNKS = 1
+CHUNKS = range(1, N_CHUNKS + 1)
 
 #Pipeline will run for each dataset in the dataKey created by the user
 dataKey = config['dataKey']
@@ -63,7 +66,8 @@ rule all:
         #expand(outFolder + "/peer{PEER_N}/" + dataCode + "combined_covariates.txt", PEER_N = PEER_values)
         #expand(outFolder + "/peer{PEER_N}/" + dataCode + "PEER_covariates.txt", PEER_N = PEER_values)
         #expand(prefix + "_genotypes.grm", DATASET = datasets ) 
-        mmQTL_folder + "all_results_collated.txt"
+        expand(mmQTL_folder + "chunk_{CHUNK}_output.txt", CHUNK = CHUNKS )
+        #mmQTL_folder + "all_results_collated.txt"
 
 #1. Make sample key 
 
@@ -255,30 +259,39 @@ rule prep_mmQTL:
 
 rule runMMQTL: 
     input:
-        pheno_txt = mmQTL_folder + "pheno_list.txt",
-        geno_txt = mmQTL_folder + "geno_list.txt",
-        grm_txt = mmQTL_folder + "grm_list.txt",
-        cov_txt = mmQTL_folder + "cov_list.txt",
+        pheno = mmQTL_folder + "pheno_list.txt",
+        geno = mmQTL_folder + "geno_list.txt",
+        grm = mmQTL_folder + "grm_list.txt",
+        cov = mmQTL_folder + "cov_list.txt",
         pheno_meta = mmQTL_folder + "phenotype_metadata.tsv"
+    params:
+        script = "scripts/run_mmQTL.R",
+        prefix = mmQTL_folder + "results/"
     output:
-        #mmQTL output files 
-        mmQTL_folder + "{CHROM}" + "_output.txt"
+        mmQTL_folder + "chunk_{CHUNK}_output.txt"
         #directory( outFolder + "/{dataset}/"  + dataCode + "PEER_covariates.txt" + "{CHROM}")
     shell:
-        "cd /sc/arion/projects/ad-omics/data/software/MMQTL/MMQTL"
-        "MMQTL23 -b  -P  pheno_file.text   -Z  geno_file.txt   -R GRM_file.txt \
-        -a feature_annotation.bed  -A random  -C covariate_matrix.csv  -gene  gene_name"
+        "ml R/4.0.3;"
+        "Rscript {params.script} "
+        " --pheno_file {input.pheno} "
+        " --geno_file {input.geno} "
+        " --grm_file {input.grm} "
+        " --cov_file {input.cov} "
+        " --pheno_meta {input.pheno_meta} "
+        " --prefix {mmQTL_folder} "
+        " -i {wildcards.CHUNK} "
+        " -n {N_CHUNKS} "
 
 #10. Collate mmQTL results
 
 rule mmQTLcollate: 
     input:
-        expand(mmQTL_folder + "{CHROM}" + "_output.txt", CHROM = chromosomes, allow_missing=True )
+        expand(mmQTL_folder + "chunk_{CHUNK}_output.txt", CHUNK = CHUNKS )
     output:
         mmQTL_folder + "all_results_collated.txt"
     params:
         script = "scripts/merge_results.R" 
     shell:
         "ml R 3.6;"
-        "Rscript {params.script}" 
+        #"Rscript {params.script}" 
 
