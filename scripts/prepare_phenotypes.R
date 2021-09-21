@@ -42,9 +42,6 @@ prefix <- opt$prefix
 # read in matrix and meta
 pheno <- read_tsv(pheno_matrix)
 meta <- read_tsv(pheno_meta)
-
-row.names(meta) <- meta$feature 
-
 message(" * read in ", nrow(pheno), " features from ", ncol(pheno), " samples ")
 
 sk <- read_tsv(sample_key)
@@ -56,6 +53,15 @@ pheno <- pheno[, c(names(pheno)[1], sk$sample_id) ]
 message(" * ", ncol(pheno), " samples kept from sample key " )
 
 # remove features from chromosomes not present in VCF - TODO
+chroms <- paste0("chr", 1:22)
+
+meta <- meta[ meta$chr %in% chroms,]
+
+row.names(meta) <- meta$feature 
+
+message( " * ", nrow(meta), " autosomal features kept " )
+
+print(head(meta) )
 
 # rename columns from samples to donors (participant_id in sample key)
 names(pheno) <- c("feature", sk$participant_id )
@@ -74,8 +80,8 @@ features_clean <- rowSums(pheno >= min_threshold) > min_fraction * ncol(pheno)
 pheno <- pheno[ features_clean, ]
 
 message(" * ", nrow(pheno), " features pass missingness thresholds" )
+#save.image("debug.RData")
 
-meta <- meta[ row.names(pheno), ]
 
 # if requested, divide each feature by the sum of the group (for tuQTLs, SUPPA and txrevise) - TODO
 if( group == TRUE){
@@ -90,7 +96,6 @@ pheno <- as.data.frame(t(scale(t(pheno) )))
 # clean up meta
 row.names(meta) <- meta$feature
 meta <- meta[ row.names(pheno), ]
-
 
 # write out phenotype and metadata
 out_file <- paste0(prefix, "_pheno.tsv.gz")

@@ -76,7 +76,16 @@ colnames(R) <- rownames(M)
 
 # write results
 cat("PEER: writing results ... ")
-WriteTable(t(X), file.path(argv$output_dir, paste0(argv$prefix, ".PEER_covariates.txt")), "ID")  # format(X, digits=6)
-WriteTable(A, file.path(argv$output_dir, paste0(argv$prefix, ".PEER_alpha.txt")), "ID")
-WriteTable(R, file.path(argv$output_dir, paste0(argv$prefix, ".PEER_residuals.txt")), "ID")
+#save.image("PEER_debug.RData")
+
+# mmQTL needs specific input file 
+mmqtl_input <- cbind( 
+    data.frame( intercept = rep(1, nrow(X) ) ), X
+)
+
+write.table(mmqtl_input, file.path(argv$output_dir, paste0(argv$prefix, "_PEER_mmQTL.txt")), col.names = FALSE, row.names = FALSE, quote = FALSE, sep = "\t")
+
+WriteTable(t(X), file.path(argv$output_dir, paste0(argv$prefix, "_PEER_covariates.txt")), "ID")  # format(X, digits=6)
+WriteTable(A, file.path(argv$output_dir, paste0(argv$prefix, "_PEER_alpha.txt")), "ID")
+WriteTable(R, file.path(argv$output_dir, paste0(argv$prefix, "_PEER_residuals.txt")), "ID")
 cat("done.\n")

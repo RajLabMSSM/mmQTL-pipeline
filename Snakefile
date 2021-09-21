@@ -12,34 +12,25 @@
 #9. Run mmQTL for features across datasets in dataKey
 #10. Collate all mmQTL results   
 
+mmQTL_bin = "MMQTL25"
+
 import glob
 import pandas as pd 
 import os 
 
-#inFolder = config['inFolder']
 outFolder = config['outFolder']
 phenoMeta = config['phenoMeta']
-#VCF = config['VCF']
-#VCFstem = VCF.split(".vcf.gz")[0]
-#geneMatrix = config['geneMatrix']
-#geneAnno = config['geneAnno']
 dataCode = config['dataCode']
-#PEER_values = config["PEER_values"]
 
-
-#genename = matrix['Gene'] 
 
 prefix = outFolder + "/" + dataCode
-
-#covariateFile = config['covariateFile']
 
 ####################################################
 
 SNAKEDIR = os.path.dirname(workflow.snakefile) + "/"
 
-#chromosomes = ["chr" + str(i) for i in range(1,23)]
 
-N_CHUNKS = 1
+N_CHUNKS = 10
 CHUNKS = range(1, N_CHUNKS + 1)
 
 #Pipeline will run for each dataset in the dataKey created by the user
@@ -65,9 +56,9 @@ rule all:
     input:
         #expand(outFolder + "/peer{PEER_N}/" + dataCode + "combined_covariates.txt", PEER_N = PEER_values)
         #expand(outFolder + "/peer{PEER_N}/" + dataCode + "PEER_covariates.txt", PEER_N = PEER_values)
-        #expand(prefix + "_genotypes.grm", DATASET = datasets ) 
+        #expand(prefix + "_genotypes_GRM.tsv", DATASET = datasets ) 
         expand(mmQTL_folder + "chunk_{CHUNK}_output.txt", CHUNK = CHUNKS )
-        #mmQTL_folder + "all_results_collated.txt"
+         #mmQTL_folder + "all_results_collated.txt"
 
 #1. Make sample key 
 
@@ -92,7 +83,8 @@ rule VCFtoPLINK:
         afreq = prefix + "_genotypes.afreq",
         chr_list = prefix + "_vcf_chr_list.txt"
     params:
-        stem = prefix + "_genotypes"
+        stem = prefix + "_genotypes",
+        blacklist = "scripts/Lifted_HighLDregion_hg38_RK_12_12_19.bed"
     run:
         vcf = metadata_dict[wildcards.DATASET]["genotypes"]
         shell("ml tabix; \
@@ -103,6 +95,7 @@ rule VCFtoPLINK:
         --output-chr chrM \
         --max-alleles 2 \
         --keep {input.participants} \
+        --exclude range {params.blacklist} \
         --maf 0.01 \
         --freq \
         --allow-extra-chr \
@@ -117,14 +110,22 @@ rule generateGRM:
     input:
         genotypes = prefix + "_genotypes.afreq"
     output:
-        prefix + "_genotypes.grm"
+        prefix + "_genotypes_GRM.tsv"
     params:
-        stem = prefix + "_genotypes"
+        stem = prefix + "_genotypes",
+        script = "scripts/process_GRM.R"
     shell:
-        "ml plink2; "
-        "plink2 --bfile {params.stem} "
-        "--read-freq {input.genotypes} "
-        "--make-grm-list -out {params.stem}"
+        "ml plink; ml R/4.0.3 ; ml gcta;"
+        "plink --bfile {params.stem} --maf 0.05 --output-chr 26 --make-bed --out {params.stem}_GCTA;"
+        "gcta64 --bfile {params.stem}_GCTA  --autosome --maf 0.05 --make-grm --out {params.stem}_GRM  --thread-num 20;"
+        #"plink --bfile {params.stem} "
+        #" --genome  --out {params.stem} ;"
+        #"plink --bfile {params.stem} "
+        #" --read-genome {params.stem}.genome "
+        #" --cluster --mds-plot 4 --out {params.stem}.MDS; "
+        " Rscript {params.script} --prefix {params.stem}_GRM  "
+        #"--read-freq {input.genotypes} "
+        #"--make-grm-list -out {params.stem}"
 
 #5. Normalise phenotype matrix
 
@@ -169,53 +170,36 @@ rule normalise_pheno:
 
 
 #6. Covariate matrix
-#expand on PEER wildcard
-
+# using PEER
 rule runPEER:
     input:
         phenotype_matrix = prefix + "_pheno.tsv.gz"
     params:
-        script = "scripts/run_PEER.R",
+        script = "scripts/run_PEER_mmQTL.R",
     output:
-        prefix  + ".PEER_covariates.txt"
+        prefix  + "_PEER_mmQTL.txt"
     run:
         PEER_N = metadata_dict[wildcards.DATASET]["PEER"]
         if int(PEER_N) > 0:
-            shell("ml R/3.6.0; ")
-            shell("Rscript {params.script} {input} {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} {PEER_N}")
+            shell("ml R/3.6.0; Rscript {params.script} {input} {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} {PEER_N}")
         else:
             shell("touch {output}")
 
-#7. Combine covariates 
 
-rule combineCovariates:
+## Regress covariates from phenotype matrix
+rule regress_covariates:
     input:
-        pheno = prefix + "_pheno.tsv.gz",
-        peer = prefix  + ".PEER_covariates.txt"
-        #peer =  outFolder + "/{dataset}/"  + dataCode + "PEER_covariates.txt",
-        #covariates = ""
-        #covariates = covariateFile
+        pheno = phenotype_matrix = prefix + "_pheno.tsv.gz",
+        cov = prefix  + "_PEER_covariates.txt"
     output:
-        cov_df = prefix + "_combined_covariates.txt"
+        prefix + "_pheno.regressed.tsv.gz"
     params:
-        script = "scripts/combine_covariates.py",
-    run:
-        PEER_N = metadata_dict[wildcards.DATASET]["PEER"]
-        if int(PEER_N) > 0:
-            peerFile = "--add_covariates " + input.peer
-        else:
-            peerFile = ""
-        #shell("python {params.script} {peerFile} \
-        #    --covariates {input.covariates} \
-        #    {outFolder}peer{params.num_peer}/{dataCode}_peer{params.num_peer}")
-        # make sure combined covariate file has column names in same order as phenotype file
-        phenotype_df = pd.read_csv(input.pheno, sep='\t', dtype={'#chr':str, '#Chr':str})
-        covariate_df = pd.read_csv(output.cov_df, sep = "\t" )
-        covariate_df = covariate_df[ ["ID"] + list(phenotype_df.columns[4:]) ]
-        # write out
-        covariate_df.to_csv(output.cov_df, header = True, index = False, sep = "\t")
-
-#8. Harmonize phenoype files so that each file has the same features
+        script = "scripts/regress_covariates.R"
+    shell:
+        "ml R/4.0.3; "
+        "Rscript {params.script} --pheno {input.pheno} --cov {input.cov} --out {output}"
+ 
+#8. Harmonize phenotype files so that each file has the same features
 #expand on dataset wildcard 
 ##this is the pheno file that will go into the path for pheno_file in the runMMQTL rule
 
@@ -238,8 +222,8 @@ rule prep_mmQTL:
         input:
            pheno = expand(mmQTL_folder +  "{DATASET}_pheno.harmonised.tsv", DATASET = datasets),
            geno = expand(prefix + "_genotypes.fam", DATASET = datasets),
-           cov = expand(prefix + ".PEER_covariates.txt", DATASET = datasets),
-           grm = expand(prefix + "_genotypes.grm", DATASET = datasets)
+           grm = expand(prefix + "_genotypes_GRM.tsv", DATASET = datasets),
+           cov = expand(prefix + "_PEER_mmQTL.txt", DATASET = datasets)
         output:
            pheno_txt = mmQTL_folder + "pheno_list.txt",
            geno_txt = mmQTL_folder + "geno_list.txt",
@@ -279,6 +263,7 @@ rule runMMQTL:
         " --cov_file {input.cov} "
         " --pheno_meta {input.pheno_meta} "
         " --prefix {mmQTL_folder} "
+        " --mmQTL {mmQTL_bin} "
         " -i {wildcards.CHUNK} "
         " -n {N_CHUNKS} "
 

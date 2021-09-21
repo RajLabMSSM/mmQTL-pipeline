@@ -2,29 +2,6 @@
 dataCode: "example"
 
 dataKey: "example/example_data_key.tsv" 
-phenoMeta: "example/example_gene_info.txt"
+phenoMeta: "example/phenotype_metadata_72genes.tsv"
 outFolder: "results/"
-
-#Path to input files
-#inFolder: "/hpc/users/brophe01/mmQTL-pipeline/example/"
-
-#Path to output files
-#outFolder: "/hpc/users/brophe01/mmQTL-pipeline/Test_output"
-
-#Matching RNA samples to DNA samples
-#sampleKey: "/sc/arion/projects/als-omics/microglia_isoseq/Erica/gaffney_mmqtl_data/gaffney_samplekey.txt" 
-
-#VCF file for cohort
-#VCF: "/sc/arion/projects/als-omics/microglia_isoseq/Erica/gaffney_mmqtl_data/ALL.chr.merged.vcf.gz"
-
-#Gene expression matrix for matrix (ex: TPM) 
-#geneMatrix: "/sc/arion/projects/als-omics/microglia_isoseq/Erica/gaffney_mmqtl_data/gaffney_genematrix.csv"
-
-#
-geneAnno: "/sc/arion/projects/als-omics/microglia_isoseq/Erica/gaffney_mmqtl_data/gencode_feature_annotation.txt"
-
-
-
-#any additional covariates given by the user
-covariateFile: ""
 

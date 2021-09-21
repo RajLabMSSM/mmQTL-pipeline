@@ -38,11 +38,24 @@ ReadGRMBin=function(prefix, AllN=F, size=4){
   return(list(diag=grm[i], off=grm[-i], id=id, N=N))
 }
 
-GRM_result <- ReadGRMBin(prefix)
+GRM <- ReadGRMBin(prefix)
 
-out_file <- paste0(prefix, ".GRM.RDS")
+## to create the matrix:
 
-saveRDS(GRM_result, out_file)
+GRM_matrix <- matrix(NA, ncol = length(GRM$id$V2), nrow = length(GRM$id$V2), dimnames = list(GRM$id$V2, GRM$id$V2))
+diag(GRM_matrix) <- GRM$diag
+
+gdata::lowerTriangle(GRM_matrix, diag=FALSE, byrow=FALSE) <- GRM$off
+gdata::upperTriangle(GRM_matrix, diag=FALSE, byrow=TRUE) <- GRM$off
+
+# GRM_matrix[1:5,1:5]
+
+out_file <- paste0(prefix, ".tsv")
+
+write.table(GRM_matrix, out_file, sep = "\t", quote = FALSE, col.names = FALSE, row.names = FALSE)
+
+
+#saveRDS(GRM_result, out_file)
 
 #paste0(WorkingFolder, "PLINK_for_eQTL_GRM_nonBinary.RDs"))
 #m(list = ls())

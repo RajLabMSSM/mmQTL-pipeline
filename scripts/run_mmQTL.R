@@ -20,7 +20,7 @@ option_list <- list(
     make_option(c('--pheno_file'), help = "path to pheno list file"),
     make_option(c('--grm_file'), help = "path to GRM list file"),
     make_option(c('--cov_file'), help = "path to covariate_file"),
-    make_option(c('--mmQTL'), help = "path to MMQTL executable", default = "MMQTL24")
+    make_option(c('--mmQTL'), help = "path to MMQTL executable", default = "MMQTL25")
 )
 
 option.parser <- OptionParser(option_list=option_list)
@@ -35,6 +35,8 @@ i_chunk <- as.numeric(opt$chunk)
 n_chunk <- as.numeric(opt$chunk_total)
 prefix <- opt$prefix
 mmqtl_bin <- opt$mmQTL
+
+cis_window <- 1e6
 
 # Actions:
 save.image("debug.RData")
@@ -55,7 +57,7 @@ run_mmQTL <- function(meta_loc, j){
     
     feature_j <- meta_loc[j, ]$feature
 
-    cmd <- paste0( "./", mmqtl_bin,
+    cmd1 <- paste0( "./", mmqtl_bin,
         " -b ", 
         " -P ", pheno_file,
         " -Z ", geno_file,
@@ -64,13 +66,19 @@ run_mmQTL <- function(meta_loc, j){
         " -a ", meta_file,
         " -A random ",
         " -gene ", feature_j,
-        " --threads 4",
-        " --output ", prefix
+        " --threads 4" ,
+        " --out ", prefix,
+        " --primary_only ",
+        " -V ", format(cis_window, scientific = FALSE, digits = 1)
         # MMQTL24 -b  -P  pheno_file.txt   -Z  geno_file.txt   -R GRM_file.txt -a feature_annotation.bed  -A random   -gene  gene_name 
     )
-    print(cmd)
+    print(cmd1)
+    system(cmd1)
+    # move outputs to correct folder
+    cmd2 <- paste0( "mv ", feature_j, " ", prefix, "/" )
+    print(cmd2)
+    system(cmd2)
     
-    #system(cmd)
 }
 
 # read in phenotype metadata
