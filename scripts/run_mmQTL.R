@@ -12,6 +12,7 @@
 # chunk number (n) and chunk number (i of n)
 library(optparse)
 option_list <- list(
+    make_option(c('--chrom'), help = "which chromosome to run on", default = ""),
     make_option(c('--pheno_meta'), help = 'phenotype metadata', default = ""),
     make_option(c('--chunk_total', '-n'), help = 'total number of chunks', default = 10),
     make_option(c('--chunk', '-i'), help = 'current chunk number', default = 1),
@@ -26,6 +27,7 @@ option_list <- list(
 option.parser <- OptionParser(option_list=option_list)
 opt <- parse_args(option.parser)
 
+chrom <- opt$chrom
 meta_file <- opt$pheno_meta
 geno_file <- opt$geno_file
 pheno_file <- opt$pheno_file
@@ -37,6 +39,10 @@ prefix <- opt$prefix
 mmqtl_bin <- opt$mmQTL
 
 cis_window <- 1e6
+
+if( !dir.exists(prefix) ){
+    dir.create(prefix, recursive = TRUE)
+}
 
 # Actions:
 #save.image("debug.RData")
@@ -54,7 +60,7 @@ split_chunks <- function(meta, i, n){
 # handle exceptions somehow
 # for j'th entry in meta_loc, make system call to MMQTL
 run_mmQTL <- function(meta_loc, j){
-    
+     
     feature_j <- meta_loc[j, ]$feature
 
     cmd1 <- paste0( "./", mmqtl_bin,
@@ -84,14 +90,20 @@ run_mmQTL <- function(meta_loc, j){
 # read in phenotype metadata
 meta <- readr::read_tsv(meta_file, col_names = c("chr", "start", "end", "feature") )
 
-head(meta)
+# keep only the specified chromosome
+stopifnot(chrom %in% meta$chr)
+meta_loc <- meta[ meta$chr == chrom,] 
 
-meta_loc <- split_chunks(meta,i_chunk , n_chunk)
+head(meta_loc)
+
+meta_loc <- split_chunks(meta_loc,i_chunk , n_chunk)
 
 message( " * ", nrow(meta_loc), " features in chunk ", i_chunk, " of ", n_chunk )
 
+stopifnot( nrow(meta_loc) > 0 )
+
 # write out chunked metadata and use in mmQTL script as metadata - may save time
-meta_chunk_file <- paste0(prefix, "/chunk_", i_chunk, "_meta.tsv" )
+meta_chunk_file <- paste0(prefix, "/", chrom, "_chunk_", i_chunk, "_meta.tsv" )
 readr::write_tsv(meta_loc, meta_chunk_file, col_names = FALSE)
 
 # for the chunk of features, iterate through 
@@ -101,5 +113,5 @@ for( j in 1:nrow(meta_loc) ){
 
 }
 
-out_file <- paste0(prefix, "/chunk_", i_chunk, "_output.txt" )
+out_file <- paste0(prefix, "/", chrom, "_chunk_", i_chunk, "_output.txt" )
 writeLines( c("success"), out_file)

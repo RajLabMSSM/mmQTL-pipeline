@@ -57,7 +57,7 @@ def write_list_to_file(my_list, file_name):
 
 rule all:
     input:
-        expand(mmQTL_folder + "{CHROM}_chunk_{CHUNK}_output.txt", CHUNK = CHUNKS, CHROM = chromosomes )
+        expand(mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt", CHUNK = CHUNKS, CHROM = chromosomes )
         #expand(outFolder + "/peer{PEER_N}/" + dataCode + "combined_covariates.txt", PEER_N = PEER_values)
         #expand(outFolder + "/peer{PEER_N}/" + dataCode + "PEER_covariates.txt", PEER_N = PEER_values)
         #expand(prefix + "_genotypes_GRM.tsv", DATASET = datasets ) 
@@ -254,7 +254,7 @@ rule prep_mmQTL:
            plink_files = [ os.path.splitext(i)[0] for i in input.geno ]
            # for each chromosome write a list of genotype files
            for CHROM in chromosomes:
-               geno_chrom_files = [outFolder + d + "/" + d + "_genotypes_" + CHROM for d in datasets ]     
+               geno_chrom_files = [outFolder + d + "/genotypes/" + d + "_genotypes_" + CHROM for d in datasets ]     
                geno_chrom_out = mmQTL_folder + CHROM + "_geno_list.txt"
                write_list_to_file( geno_chrom_files, geno_chrom_out )
 
@@ -269,24 +269,24 @@ rule prep_mmQTL:
 rule runMMQTL: 
     input:
         pheno = mmQTL_folder + "pheno_list.txt",
-        geno = expand(mmQTL_folder + "{CHROM}_geno_list.txt", CHROM = chromosomes),
+        geno = expand(mmQTL_folder + "{CHROM}_geno_list.txt", allow_missing = True), #CHROM = chromosomes),
         grm = mmQTL_folder + "grm_list.txt",
         #cov = mmQTL_folder + "cov_list.txt",
         pheno_meta = mmQTL_folder + "phenotype_metadata.tsv"
     params:
         script = "scripts/run_mmQTL.R",
-        prefix = mmQTL_folder + "results/"
+        prefix = mmQTL_folder + "output/"
     output:
-        mmQTL_folder + "{CHROM}_chunk_{CHUNK}_output.txt"
+        mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt"
     shell:
         "ml R/4.0.3;"
         "Rscript {params.script} "
         " --chrom {wildcards.CHROM} "
         " --pheno_file {input.pheno} "
-        " --geno_file {input.geno} "
+        " --geno_file {mmQTL_folder}/{wildcards.CHROM}_geno_list.txt "
         " --grm_file {input.grm} "
         " --pheno_meta {input.pheno_meta} "
-        " --prefix {mmQTL_folder} "
+        " --prefix {params.prefix} "
         " --mmQTL {mmQTL_bin} "
         " -i {wildcards.CHUNK} "
         " -n {N_CHUNKS} "
@@ -295,7 +295,7 @@ rule runMMQTL:
 
 rule mmQTLcollate: 
     input:
-        expand(mmQTL_folder + "{CHROM}_chunk_{CHUNK}_output.txt", CHUNK = CHUNKS, CHROM = chromosomes )
+        expand(mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt", CHUNK = CHUNKS, CHROM = chromosomes )
     output:
         mmQTL_folder + "all_results_collated.txt"
     params:

@@ -30,5 +30,5 @@ getCHRgetCHR:
   mem: 3000
 runMMQTL:
   time: '720'
-  cores: 32
+  cores: 1
   mem: 3000
