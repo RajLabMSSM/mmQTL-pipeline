@@ -258,8 +258,6 @@ rule prep_mmQTL:
            #write_list_to_file(input.cov, output.cov_txt) 
 
 #9. Run mmQTL 
-#expand on PEER and phenotype
-
 rule runMMQTL: 
     input:
         pheno = mmQTL_folder + "pheno_list.txt",
@@ -285,16 +283,16 @@ rule runMMQTL:
         " -i {wildcards.CHUNK} "
         " -n {N_CHUNKS} "
 
-#10. Collate mmQTL results
+#10. TODO: Collate mmQTL results
 
 rule mmQTLcollate: 
     input:
-        expand(mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt", CHUNK = CHUNKS, CHROM = chromosomes )
+        expand(mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt", CHUNK = CHUNKS, allow_missing = True )
     output:
-        mmQTL_folder + "all_results_collated.txt"
+        mmQTL_folder + "{CHROM}_collated.txt"
     params:
         script = "scripts/merge_results.R" 
     shell:
-        "ml R 3.6;"
+        "ml R 4.0.3;"
         #"Rscript {params.script}" 
 
