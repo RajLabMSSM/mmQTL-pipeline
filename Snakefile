@@ -1,16 +1,12 @@
-# mmQTL pipeline 08/05/21
-# Erica Brophy
+# mmQTL pipeline 
+# Jack Humphrey & Erica Brophy
+# 2021 Raj lab
+#
 
-#1. Make sample key
-#2. Filtered plink genotype file
-#3. List of gene positions - command out for now 
-#4. GRM
-#5. Normalised gene expression matrix
-#6. Covariate matrix
-#7. Combine Covariate matrix
-#8. Harmonize phenotype input files across dataset
-#9. Run mmQTL for features across datasets in dataKey
-#10. Collate all mmQTL results   
+## set chunk number
+N_CHUNKS = 20
+CHUNKS = range(1, N_CHUNKS + 1)
+
 
 mmQTL_bin = "MMQTL25"
 
@@ -26,14 +22,12 @@ outFolder = config['outFolder']
 phenoMeta = config['phenoMeta']
 dataCode = config['dataCode']
 
-
+outFolder = os.path.join(outFolder, dataCode) + "/"
+print( " output folder = " + outFolder)
 ####################################################
 
 SNAKEDIR = os.path.dirname(workflow.snakefile) + "/"
 
-
-N_CHUNKS = 2
-CHUNKS = range(1, N_CHUNKS + 1)
 
 #Pipeline will run for each dataset in the dataKey created by the user
 dataKey = config['dataKey']
@@ -196,7 +190,7 @@ rule runPEER:
     params:
         script = "scripts/run_PEER_mmQTL.R",
     output:
-        prefix  + "_PEER_mmQTL.txt"
+        prefix  + "_PEER_covariates.txt"
     run:
         PEER_N = metadata_dict[wildcards.DATASET]["PEER"]
         if int(PEER_N) > 0:

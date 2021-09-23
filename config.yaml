@@ -1,7 +1,7 @@
 #datacode
-dataCode: "example"
+dataCode: "GENCODE_expression"
 
 dataKey: "example/example_data_key.tsv" 
-phenoMeta: "example/phenotype_metadata_72genes.tsv"
+phenoMeta: "gencode.v38.gene_pheno_matrix.tsv"
 outFolder: "results/"
 
