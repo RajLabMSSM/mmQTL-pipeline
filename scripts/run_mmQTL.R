@@ -39,7 +39,7 @@ mmqtl_bin <- opt$mmQTL
 cis_window <- 1e6
 
 # Actions:
-save.image("debug.RData")
+#save.image("debug.RData")
 # split the list of features into a given number of chunks (n)
 split_chunks <- function(meta, i, n){
    bins <- dplyr::ntile(1:nrow(meta), n)
@@ -62,13 +62,13 @@ run_mmQTL <- function(meta_loc, j){
         " -P ", pheno_file,
         " -Z ", geno_file,
         " -R ", grm_file,
-        " -C ", cov_file,
-        " -a ", meta_file,
+        #" -C ", cov_file,
+        " -a ", meta_chunk_file,
         " -A random ",
         " -gene ", feature_j,
         " --threads 4" ,
         " --out ", prefix,
-        " --primary_only ",
+        " --primary_only ", ## TODO - make optional
         " -V ", format(cis_window, scientific = FALSE, digits = 1)
         # MMQTL24 -b  -P  pheno_file.txt   -Z  geno_file.txt   -R GRM_file.txt -a feature_annotation.bed  -A random   -gene  gene_name 
     )
@@ -89,6 +89,10 @@ head(meta)
 meta_loc <- split_chunks(meta,i_chunk , n_chunk)
 
 message( " * ", nrow(meta_loc), " features in chunk ", i_chunk, " of ", n_chunk )
+
+# write out chunked metadata and use in mmQTL script as metadata - may save time
+meta_chunk_file <- paste0(prefix, "/chunk_", i_chunk, "_meta.tsv" )
+readr::write_tsv(meta_loc, meta_chunk_file, col_names = FALSE)
 
 # for the chunk of features, iterate through 
 for( j in 1:nrow(meta_loc) ){

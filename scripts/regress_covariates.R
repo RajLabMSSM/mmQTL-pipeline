@@ -1,7 +1,7 @@
 # Regress covariates from phenotype file
 ## Jack Humphrey
 ## 2021
-
+library(optparse)
 
 option_list <- list(
     make_option(c('--pheno'), help = 'phenotype count matrix', default = ""),
@@ -21,29 +21,25 @@ library(tidyverse)
 pheno <- read_tsv(pheno_file)
 cov <- read_tsv(cov_file)
 
+save.image("debug.RData")
+
 # transpose covariate matrix
 cov_t <- 
     pivot_longer(cov, names_to= "sample", values_to = "value", !ID ) %>% 
     pivot_wider(names_from = "ID", values_from = "value") %>% 
     column_to_rownames(var = "sample")
 
-# transpose phenotype matrix
-pheno_t <- 
-    pivot_longer(pheno, names_to= "sample", values_to = "value", !ID ) %>%
-    pivot_wider(names_from = "Gene", values_from = "value") %>% 
-    column_to_rownames(var = "sample")
-
+pheno_r <- column_to_rownames(pheno, "feature") 
 
 ## regress covariates from phenotypes
-norm_t <- 
-  limma::removeBatchEffect(pheno_t, covariates = cov_t )
+pheno_norm <- 
+  limma::removeBatchEffect(pheno_r, covariates = cov_t )
 
-save.image("debug.RData")
+#save.image("debug.RData")
 
 # transpose back
-norm <- norm %>%
+pheno_df <- pheno_norm %>% as.data.frame() %>% rownames_to_column( var = "feature")
 
-
-write_tsv(reg, out_file )
+write_tsv(pheno_df, out_file )
 
 
