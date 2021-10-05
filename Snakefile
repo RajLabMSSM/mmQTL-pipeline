@@ -11,6 +11,8 @@ CHUNKS = range(1, N_CHUNKS + 1)
 mmQTL_bin = "MMQTL25"
 
 chromosomes = ["chr" + str(i) for i in range(1,23) ]
+# for testing
+#chromosomes = ["chr21"]
 
 print(chromosomes)
 
@@ -51,7 +53,10 @@ def write_list_to_file(my_list, file_name):
 
 rule all:
     input:
-        expand(mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt", CHUNK = CHUNKS, CHROM = chromosomes )
+        #expand(mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt", CHUNK = CHUNKS, CHROM = chromosomes )
+        #expand(mmQTL_folder + "output/{CHROM}_top_assoc.tsv", CHROM = chromosomes)
+        mmQTL_folder + dataCode + "_full_assoc.tsv.gz"
+        #mmQTL_folder + dataCode + "_top_assoc.tsv.gz"
         #expand(outFolder + "/peer{PEER_N}/" + dataCode + "combined_covariates.txt", PEER_N = PEER_values)
         #expand(outFolder + "/peer{PEER_N}/" + dataCode + "PEER_covariates.txt", PEER_N = PEER_values)
         #expand(prefix + "_genotypes_GRM.tsv", DATASET = datasets ) 
@@ -287,12 +292,42 @@ rule runMMQTL:
 
 rule mmQTLcollate: 
     input:
+        # paste0(prefix, chrom, "_top_assoc.tsv" )
         expand(mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt", CHUNK = CHUNKS, allow_missing = True )
     output:
-        mmQTL_folder + "{CHROM}_collated.txt"
+        mmQTL_folder + "output/{CHROM}_top_assoc.tsv"
+        #mmQTL_folder + "{CHROM}_collated.txt"
     params:
-        script = "scripts/merge_results.R" 
+        script = "scripts/collate_mmQTL.R",
+        prefix = mmQTL_folder + "output/"
     shell:
-        "ml R 4.0.3;"
-        #"Rscript {params.script}" 
+        "ml R/4.0.3;"
+        "Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} --metadata {phenoMeta}" 
 
+rule topCollate:
+    input:
+        expand(mmQTL_folder + "output/{CHROM}_top_assoc.tsv", CHROM = chromosomes)
+    output:
+        mmQTL_folder + dataCode + "_top_assoc.tsv.gz"
+    params:
+        script = "scripts/collate_chrom.R"
+    shell:
+        "ml R/4.0.3;"
+        "Rscript {params.script} --output {output} {input}"
+
+rule fullCollate:
+    input:
+        mmQTL_folder + dataCode + "_top_assoc.tsv.gz"
+    output:
+        mmQTL_folder + dataCode + "_full_assoc.tsv.gz"
+    params:
+        prefix = mmQTL_folder + "output"
+    shell:
+        "ml bcftools;"
+        "for i in {chromosomes}; do echo $i;"
+        "   cat {params.prefix}/${{i}}_*_all_nominal.tsv > {params.prefix}/${{i}}_full_assoc.tsv;"
+        "   sort --parallel=8 -k 4,4n {params.prefix}/${{i}}_full_assoc.tsv > {params.prefix}/${{i}}_full_assoc.sorted.tsv;"
+        "done;"
+        "zless {input} | head -1 > {params.prefix}/{dataCode}_full_assoc_header.txt;"
+        "cat {params.prefix}/{dataCode}_full_assoc_header.txt {params.prefix}/chr*_full_assoc.sorted.tsv | bgzip > {mmQTL_folder}/{dataCode}_full_assoc.tsv.gz;"
+        "tabix -S 1 -s 3 -b 4 -e 4 {mmQTL_folder}/{dataCode}_full_assoc.tsv.gz "

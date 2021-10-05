@@ -9,15 +9,36 @@
 ## write sorted associations to a file - no header
 ## concatenate all the pieces into a single chromosome file
 
-prefix <- "results/example/mmQTL/output/"
-chrom <- "chr1"
-pheno_meta <- "example/phenotype_metadata_72genes.tsv"
+library(optparse)
+
+option_list <- list(
+   make_option(c('--prefix'), help = 'stem of out file', default = "results/example/example"),
+   make_option(c('--metadata'), help = 'phenotype metadata file', default = ""),
+   make_option(c('--chrom'), help = 'the chromosome', default = "")
+)
+
+option.parser <- OptionParser(option_list=option_list)
+opt <- parse_args(option.parser)
+
+print(opt)
+
+prefix <- opt$prefix
+chrom <- opt$chrom
+pheno_meta <- opt$metadata
+#prefix <- "results/example/mmQTL/output/"
+#chrom <- "chr1"
+#pheno_meta <- "example/phenotype_metadata_72genes.tsv"
+library(readr)
+library(purrr)
+library(dplyr)
+
+message(" * collating ", chrom )
 
 meta <- read_tsv(pheno_meta, col_names = c("chr", "start", "end", "feature") )
 
 meta_loc <- meta[ meta$chr %in% chrom, ]
 
-all_files <- list.files(prefix, pattern = "test_peak_1_statistical_signal", recursive = TRUE)
+all_files <- list.files(prefix, pattern = "test_peak_1_statistical_signal", recursive = TRUE, full.names = FALSE)
 
 files_loc <- all_files[ dirname(all_files) %in% meta_loc$feature ] 
 
@@ -26,10 +47,13 @@ files_loc <- paste0( prefix, files_loc)
 
 names(files_loc) <- features_loc
 
+message( " * ", length(files_loc), " to collate" )
+
+geno_folder <- dirname(dirname(prefix) )
 ## get SNP coordinates from the coordinate BIM files for each dataset
-bim_files <- list.files( "results/example/", pattern = paste0("*", chrom, ".bim" ), recursive = TRUE )
+bim_files <- list.files( geno_folder, pattern = paste0("*", chrom, ".bim" ), recursive = TRUE, full.names = TRUE )
 ## read in and get distinct rows
-bim_res <- map_df(bim_files, read_tsv, col_names = c("chr", "Variant","n", "pos", "ref", "alt") ) %>% distinct()
+bim_res <- purrr::map_df(bim_files, read_tsv, col_names = c("chr", "Variant","n", "pos", "ref", "alt") ) %>% distinct()
 
 bim_res$chr <- paste0("chr", bim_res$chr)
 bim_res$n <- NULL
@@ -38,27 +62,35 @@ bim_res$n <- NULL
 add_P <- function(data){
     data$Fixed_P <- 2*pnorm(q=abs(data$fixed_z), lower.tail=FALSE)
     data$Random_P <- 2*pnorm(q=abs(data$Random_Z), lower.tail=FALSE)
-    data$Fixed_q <- p.adjust(data$Fixed_P, method = "bonferroni")
-    data$Random_q <- p.adjust(data$Random_P, method = "bonferroni")
+    data$Fixed_bonf <- p.adjust(data$Fixed_P, method = "bonferroni")
+    data$Random_bonf <- p.adjust(data$Random_P, method = "bonferroni")
+    data$Fixed_FDR <- p.adjust(data$Fixed_P, method = "BH" )
+    data$Random_FDR <- p.adjust(data$Random_P, method = "BH" )
     return(data)
 }
 
 top_assoc <- list()
+
 for(feature in features_loc){
     print(feature)
     f <- files_loc[ feature ]
     d <- read_tsv(f)
+    # ignore empty or malformed files
+    if( nrow(d) == 0 ){
+      next
+    }
+    if( !"fixed_z" %in% names(d) ){ next}
+    d$feature <- feature
     # add P values
     d <- add_P(d)
     d <- left_join(d, bim_res, by = "Variant") %>%
         arrange(pos) %>%
-        select(chr, pos, Variant, ref, alt, everything() )
+        select(feature, variant_id = Variant, chr, pos, ref, alt, everything() )
     # write out
     out_file <- paste0(prefix, chrom, "_", feature, "_all_nominal.tsv" )
     write_tsv(d, out_file, col_names = FALSE) 
-    top <- arrange(d, Random_q ) %>% head(1)
+    top <- arrange(d, Random_P ) %>% head(1)
     top_assoc[[feature]] <- top
-    
 }
 
 top_res <- bind_rows(top_assoc)

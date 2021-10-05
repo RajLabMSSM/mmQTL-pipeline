@@ -30,7 +30,7 @@ stopifnot( file.exists(in_gtf) )
 stopifnot( mode %in% c("gene", "transcript" ) )
 
 
-out_file <- paste0(prefix, "_pheno_matrix.tsv")
+out_file <- paste0(prefix, "_", mode, "_pheno_matrix.tsv")
 
 shhh(library(rtracklayer))
 

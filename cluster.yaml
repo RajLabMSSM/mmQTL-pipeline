@@ -32,3 +32,7 @@ runMMQTL:
   time: '720'
   cores: 1
   mem: 3000
+fullCollate:
+  time: '720'
+  cores: 8
+  mem: 3000
