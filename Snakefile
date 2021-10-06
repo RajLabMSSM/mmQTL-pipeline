@@ -34,6 +34,12 @@ SNAKEDIR = os.path.dirname(workflow.snakefile) + "/"
 #Pipeline will run for each dataset in the dataKey created by the user
 dataKey = config['dataKey']
 
+# if group = True; then divide each feature by group total
+if "group" not in config.keys():
+    config["group"] = False
+
+group_features = bool(config['group'])
+
 meta = pd.read_csv(dataKey, sep = '\t') 
 print(meta)
 datasets = meta['dataset']
@@ -147,7 +153,7 @@ rule generateGRM:
 
 #5. Normalise phenotype matrix
 
-rule normalise_pheno:
+rule prepare_pheno:
     input:
         #vcf_chr_list = prefix + "_vcf_chr_list.txt",
         #geneMatrix = geneMatrix,
@@ -164,9 +170,8 @@ rule normalise_pheno:
         #pheno_meta = metadata_dict[wildcards.DATASET]["phenotype_info"]
         threshold = 1,
         fraction = 0.5,
-        group = False
         group_string = ""
-        if( group == True):
+        if( group_features == True):
             group_string = " --group "
         
         shell("ml R/4.0.3;\
