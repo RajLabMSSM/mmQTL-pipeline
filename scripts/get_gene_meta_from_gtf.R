@@ -15,7 +15,7 @@ library(optparse)
 
 option_list <- list(
     make_option(c('--prefix'), help = 'stem of out file', default = "test"),
-    make_option(c('--mode'), help = 'whether to get out gene or transcript', default = "gene"),
+    make_option(c('--mode'), help = 'whether to get gene, transcript or exon', default = "gene"),
     make_option(c('--gtf'), help = 'the input GTF file', default = "")
 )
 
@@ -27,12 +27,13 @@ in_gtf <- opt$gtf
 mode <- opt$mode
 
 stopifnot( file.exists(in_gtf) )
-stopifnot( mode %in% c("gene", "transcript" ) )
+stopifnot( mode %in% c("gene", "transcript", "exon" ) )
 
 
 out_file <- paste0(prefix, "_", mode, "_pheno_matrix.tsv")
 
 shhh(library(rtracklayer))
+shhh(library(dplyr) )
 
 message( " * mode selected is ", mode )
 message( " * reading in GTF file..." )
@@ -53,6 +54,11 @@ if( mode == "transcript" ){
     features <- gtf_loc$transcript_id
 }
 
+if( mode == "exon"){
+    gtf_loc <- gtf[gtf$type == "exon" ]
+    features <- gtf_loc$gene_id
+}
+
 out <- data.frame( 
     chr = seqnames(gtf_loc),
     start = start(gtf_loc),
@@ -65,6 +71,16 @@ message( " * ", nrow(out), " features kept for metadata" )
 
 if( mode == "transcript" ){
     out$group <- gtf_loc$gene_id
+}
+
+# exon format is different - due to being used by GTEx leafcutter pipeline
+if( mode == "exon"){
+    out$strand <- as.character(strand(gtf_loc))
+    out$gene_id <- gtf_loc$gene_id
+    out$gene_name <- gtf_loc$gene_name
+    out <- out %>% 
+        dplyr::select(chr, start, end, strand, gene_id, gene_name) %>%
+        dplyr::distinct()
 }
 
 message( " * writing to ", out_file)
