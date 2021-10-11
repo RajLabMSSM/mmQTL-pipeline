@@ -80,7 +80,8 @@ if( mode == "exon"){
     out$gene_name <- gtf_loc$gene_name
     out <- out %>% 
         dplyr::select(chr, start, end, strand, gene_id, gene_name) %>%
-        dplyr::distinct()
+        dplyr::distinct() %>%
+        filter(chr %in% paste0("chr", 1:22) ) # remove weird chromosomes
 }
 
 message( " * writing to ", out_file)

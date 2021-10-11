@@ -1,7 +1,7 @@
 # mmQTL pipeline 
 # Jack Humphrey & Erica Brophy
 # 2021 Raj lab
-#
+R_VERSION = "R/4.0.3"
 
 ## set chunk number
 N_CHUNKS = 20
@@ -54,10 +54,12 @@ leafcutter = config['leafcutter']
 if "leafcutter" not in config.keys():
     config["leafcutter"] = False
 if leafcutter == True:
-    pheno_matrix = prefix + ".leafcutter.bed.gz"
+    pheno_matrix = prefix + ".leafcutter.phenotype_matrix.tsv"
+    GTF = config["GTF"]
+    leafcutter_string = "--leafcutter"
 else:
     pheno_matrix = prefix + "_pheno.tsv.gz"
-
+    leafcutter_string = ""
 
 mmQTL_folder = outFolder + "mmQTL/"
 
@@ -149,7 +151,7 @@ rule generateGRM:
         stem = geno_prefix + "_genotypes",
         script = "scripts/process_GRM.R"
     shell:
-        "ml plink; ml R/4.0.3 ; ml gcta;"
+        "ml plink; ml {R_VERSION} ; ml gcta;"
         "plink --bfile {params.stem} --maf 0.05 --output-chr 26 --make-bed --out {params.stem}_GCTA;"
         "gcta64 --bfile {params.stem}_GCTA  --autosome --maf 0.05 --make-grm --out {params.stem}_GRM  --thread-num 20;"
         " Rscript {params.script} --prefix {params.stem}_GRM  "
@@ -171,7 +173,7 @@ rule prepare_pheno:
         if( group_features == True):
             group_string = " --group "
         
-        shell("ml R/4.0.3;\
+        shell("ml {R_VERSION};\
         Rscript {params.script} \
         --key {sk} \
         --pheno_matrix {pheno} \
@@ -182,18 +184,14 @@ rule prepare_pheno:
         --prefix {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} ")
 
 ## Special case - Leafcutter junctions
-rule prepLeafcutter:
+rule prepare_leafcutter:
     input:
         # expecting gzipped junction files with extension {sample}.junc.gz
-        sample_key = sample_key,
-        junction_file_list = junctionFileList, # from config - a file listing full paths to each junction file 
-        exon_list = GTFexons, # hg38 exons from gencode v30 with gene_id and gene_name
+        exon_list = phenoMeta, # hg38 exons from gencode v30 with gene_id and gene_name
         genes_gtf = GTF # full GTF or just gene starts and ends?
     output:
-        phenotype_groups = prefix + ".leafcutter.phenotype_groups.txt",
-        leafcutter_bed = prefix + ".leafcutter.bed.gz",
-        leafcutter_bed_index = prefix + ".leafcutter.bed.gz.tbi",
-        leafcutter_pcs = prefix + ".leafcutter.PCs.txt" 
+        pheno_matrix = prefix + ".leafcutter.phenotype_matrix.tsv",
+        pheno_meta= prefix + ".leafcutter.phenotype_meta.tsv"
     params: 
         leafcutter_dir = os.getcwd() + "/scripts/leafcutter/", # all leafcutter scripts hosted in a folder - some had to be converted py2 -> py3
         script = os.getcwd() + "/scripts/sqtl_prepare_splicing.py",
@@ -213,7 +211,7 @@ rule prepLeafcutter:
                  {junc_list}  \
                  {input.exon_list}  \
                  {input.genes_gtf}  \
-                 {dataCode}  \
+                 {wildcards.DATASET}  \
                  {sample_key}  \
          --min_clu_reads {params.min_clu_reads}  \
          --min_clu_ratio {params.min_clu_ratio}  \
@@ -221,14 +219,13 @@ rule prepLeafcutter:
          --coord_mode {params.coord_mode}  \
          --num_pcs {params.num_pcs} \
          --leafcutter_dir {params.leafcutter_dir};  \
-         mv -f {dataCode}* {outFolder} " 
+         mv -f {wildcards.DATASET}* {outFolder}/{wildcards.DATASET} " 
        )
 #6. Covariate matrix
 # using PEER
-rule runPEER:
+rule run_PEER:
     input:
         phenotype_matrix = pheno_matrix
-        #phenotype_matrix = prefix + "_pheno.tsv.gz"
     params:
         script = "scripts/run_PEER_mmQTL.R",
     output:
@@ -244,14 +241,14 @@ rule runPEER:
 ## Regress covariates from phenotype matrix
 rule regress_covariates:
     input:
-        pheno = prefix + "_pheno.tsv.gz",
+        pheno = pheno_matrix, # prefix + "_pheno.tsv.gz",
         cov = prefix  + "_PEER_covariates.txt"
     output:
         prefix + "_pheno.regressed.tsv.gz"
     params:
         script = "scripts/regress_covariates.R"
     shell:
-        "ml R/4.0.3; "
+        "ml {R_VERSION}; "
         "Rscript {params.script} --pheno {input.pheno} --cov {input.cov} --out {output}"
 
 
@@ -270,8 +267,8 @@ rule harmonise_phenotypes:
         script = "scripts/pheno_harmonize.R",
         prefix = mmQTL_folder
     shell: 
-        "ml R/4.0.3;"
-        "Rscript {params.script} --prefix {params.prefix} --metadata {input.pheno_meta}  {input.pheno}"
+        "ml {R_VERSION};"
+        "Rscript {params.script} --prefix {params.prefix} --metadata {input.pheno_meta}  {input.pheno} {leafcutter_string}"
 
 ## prepare inputs for mmQTL
 rule prep_mmQTL:
@@ -313,7 +310,7 @@ rule runMMQTL:
     output:
         mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt"
     shell:
-        "ml R/4.0.3;"
+        "ml {R_VERSION};"
         "Rscript {params.script} "
         " --chrom {wildcards.CHROM} "
         " --pheno_file {input.pheno} "
@@ -325,7 +322,7 @@ rule runMMQTL:
         " -i {wildcards.CHUNK} "
         " -n {N_CHUNKS} "
 
-#10. TODO: Collate mmQTL results
+#10. Collate mmQTL results
 
 rule mmQTLcollate: 
     input:
@@ -338,7 +335,7 @@ rule mmQTLcollate:
         script = "scripts/collate_mmQTL.R",
         prefix = mmQTL_folder + "output/"
     shell:
-        "ml R/4.0.3;"
+        "ml {R_VERSION};"
         "Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} --metadata {phenoMeta}" 
 
 rule topCollate:
@@ -349,7 +346,7 @@ rule topCollate:
     params:
         script = "scripts/collate_chrom.R"
     shell:
-        "ml R/4.0.3;"
+        "ml {R_VERSION};"
         "Rscript {params.script} --output {output} {input}"
 
 rule fullCollate:

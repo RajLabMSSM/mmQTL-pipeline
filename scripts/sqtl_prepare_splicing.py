@@ -117,32 +117,43 @@ if __name__=='__main__':
         os.mkdir(args.output_dir)
 
     with cd(args.output_dir):
-
         print('  * decompressing and renaming junc files')
         with open(args.junc_files_list) as f:
-            junc_files = f.read().strip().split('\n')
+            all_junc_files = f.read().strip().split('\n')
 
         junc_dir = os.path.join(args.output_dir, 'junc_files')
         if not os.path.exists(junc_dir):
             os.mkdir(junc_dir)
-        sample_ids = []
         # read in sample participant lookup
         sample_participant_lookup_s = pd.read_csv(args.sample_participant_lookup, sep='\t', index_col=0, dtype=str, squeeze=True)
+
         # match sample_id to participant_id, use this as naming the junctions
         # do on final leafcutter bed
-        for f in junc_files:
+        sample_ids = []
+        junc_files = []
+
+        for f in all_junc_files:
             sample_id = os.path.split(f)[1].split('.')[0]
-            sample_ids.append(sample_id)
-            # shutil.move(f, os.path.join(junc_dir, sample_id+'.junc.gz'))
-            # no longer assume gzipped
-            #shutil.copy2(f, os.path.join(junc_dir, sample_id+'.junc'))
+            # only if sample is in the sample key
+            if sample_id in sample_participant_lookup_s.keys():
+                sample_ids.append(sample_id)
+                junc_files.append(f)
+            else:
+                print( "  * " + sample_id + " is not present in sample key - ignoring" )
+        
         # rename samples using participant IDs from key
         sample_df = pd.DataFrame( columns = sample_ids )
         sample_df.rename(columns=sample_participant_lookup_s.to_dict(), inplace=True)
         sample_ids = sample_df.columns
+
+        #print(junc_files)
+        #print(sample_ids)
+
         # copy junctions using new IDs
         for s,j in zip(sample_ids, junc_files):
-             shutil.copy2(j, os.path.join(junc_dir, s+'.junc'))
+            out_path = os.path.join(junc_dir, s+'.junc') 
+            shutil.copy2(j, out_path)
+        
         #subprocess.check_call('gunzip -f '+os.path.join(junc_dir, '*.junc'), shell=True)
         junc_files = sorted([os.path.join(junc_dir, i+'.junc') for i in sample_ids])
 
@@ -290,17 +301,31 @@ if __name__=='__main__':
         # change sample IDs to participant IDs
         # this code was mangling my participant IDs
         #gene_bed_df.rename(columns={i:'-'.join(i.split('-')[:2]) for i in gene_bed_df.columns[4:]}, inplace=True)
-        write_bed(gene_bed_df, os.path.join(args.output_dir, args.prefix+'.leafcutter.bed'))
-        pd.Series(group_s).sort_values().to_csv(os.path.join(args.output_dir, args.prefix+'.leafcutter.phenotype_groups.txt'), sep='\t', header=True)
+        #write_bed(gene_bed_df, os.path.join(args.output_dir, args.prefix+'.leafcutter.bed'))
+        #pd.Series(group_s).sort_values().to_csv(os.path.join(args.output_dir, args.prefix+'.leafcutter.phenotype_groups.txt'), sep='\t', header=True)
+       
+        gene_bed_df.rename(columns = {'#Chr': 'chr', 'ID': 'feature', 'gid': 'group'}, inplace = True)
+         
+        # for MMQTL - make separate matrix and metadata
+        pheno_meta = gene_bed_df[list(gene_bed_df.columns[0:6]) ]  
+        pheno_matrix = gene_bed_df[ ["feature"] + list(bed_df.columns[4:] ) ]
         
-        print('  * calculating PCs')
-        pca = PCA(n_components=args.num_pcs)
-        pca.fit(bed_df[bed_df.columns[4:]])
-        pc_df = pd.DataFrame(pca.components_, index=['PC{}'.format(i) for i in range(1,args.num_pcs + 1)],
-            columns=bed_df.columns[4:] )
+        print( pheno_matrix.head() )
+        print( pheno_meta.head() )
+
+        pheno_matrix.to_csv( os.path.join( args.output_dir, args.prefix + ".leafcutter.phenotype_matrix.tsv"), sep = "\t", header = True, index=False)
+        pheno_meta.to_csv(  os.path.join( args.output_dir, args.prefix + ".leafcutter.phenotype_meta.tsv"), sep = "\t", header = True, index=False)
+        
+        
+
+        #print('  * calculating PCs')
+        #pca = PCA(n_components=args.num_pcs)
+        #pca.fit(bed_df[bed_df.columns[4:]])
+        #pc_df = pd.DataFrame(pca.components_, index=['PC{}'.format(i) for i in range(1,args.num_pcs + 1)],
+        #    columns=bed_df.columns[4:] )
         #columns=['-'.join(i.split('-')[:2]) for i in bed_df.columns[4:]])
-        pc_df.index.name = 'ID'
-        pc_df.to_csv(args.prefix+'.leafcutter.PCs.txt', sep='\t', header = True)
+        # pc_df.index.name = 'ID'
+        #pc_df.to_csv(args.prefix+'.leafcutter.PCs.txt', sep='\t', header = True)
         # clean up!
         shutil.rmtree(junc_dir)
         sorted_files = glob.glob("*sorted.gz")
