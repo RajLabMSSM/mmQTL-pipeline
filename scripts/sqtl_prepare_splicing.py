@@ -327,7 +327,7 @@ if __name__=='__main__':
         # pc_df.index.name = 'ID'
         #pc_df.to_csv(args.prefix+'.leafcutter.PCs.txt', sep='\t', header = True)
         # clean up!
-        shutil.rmtree(junc_dir)
+        #shutil.rmtree(junc_dir)
         sorted_files = glob.glob("*sorted.gz")
         misc_files = glob.glob( os.path.join(os.path.dirname(args.prefix), "_perind.counts.filtered.gz.phen_*" ) )
         for fname in bed_files + sorted_files + misc_files:

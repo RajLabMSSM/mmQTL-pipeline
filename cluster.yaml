@@ -36,7 +36,15 @@ prepare_leafcutter:
   time: '720'
   cores: 4
   mem: 3000
+prepare_SUPPA:
+  time: '720'
+  cores: 4
+  mem: 3000
 fullCollate:
+  time: '720'
+  cores: 8
+  mem: 3000
+topCollate:
   time: '720'
   cores: 8
   mem: 3000

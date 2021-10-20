@@ -1,26 +1,53 @@
 # mmQTL pipeline 
 # Jack Humphrey & Erica Brophy
 # 2021 Raj lab
+import glob
+import pandas as pd 
+import os 
+import itertools
+
 R_VERSION = "R/4.0.3"
-
-## set chunk number
-N_CHUNKS = 20
-CHUNKS = range(1, N_CHUNKS + 1)
+mmQTL_bin = "MMQTL26a"
 
 
-mmQTL_bin = "MMQTL25"
+# set chunk number
+#N_CHUNKS = 20
+#CHUNKS = range(1, N_CHUNKS + 1)
+
+# how many chunks?
+chunk_factor = 15
+
+## new cool way to do chunking proportional to chromosome size!
+# multiply per-chr chunk number by chunk factor
+# expand df so that each chromosome is repeated by the number of chunks
+# and the chunk value goes from 1 to N
+# these two lists will then be the input to the expand statement and zipped together
+# chr21 gets 1 unit, chr1 gets 7 - 7 times as many genes
+chunk_df = pd.read_csv("scripts/gencode_v38_chr_chunk_weights.tsv", sep = "\t")
+
+chunk_df = chunk_df.assign(chunk = chunk_df['ceil'] * chunk_factor )
+chunks = list(chunk_df[ "chunk" ])
+chrom = list(chunk_df["chr"])
+chr_zip = []
+chunk_zip = []
+# the magic part -
+for i in range(len(chunks)):
+    chr_zip.extend( [ chrom[i] ] * chunks[i] )
+    chunk_zip.extend( [j for j in range(1, chunks[i] + 1) ] )
+
+chunk_dict = chunk_df.set_index("chr").T.to_dict()    
+
 
 chromosomes = ["chr" + str(i) for i in range(1,23) ]
 # for testing
 #chromosomes = ["chr21"]
 
-print(chromosomes)
-
-import glob
-import pandas as pd 
-import os 
+#print(chromosomes)
 
 outFolder = config['outFolder']
+
+if "phenoMeta" not in config.keys():
+    config['phenoMeta'] = "" 
 phenoMeta = config['phenoMeta']
 dataCode = config['dataCode']
 
@@ -45,21 +72,36 @@ print(meta)
 datasets = meta['dataset']
 metadata_dict = meta.set_index("dataset").T.to_dict()
 #expand on PEER
-
+GTF = config["GTF"]
 prefix = outFolder + "{DATASET}/{DATASET}"
 geno_prefix = outFolder + "{DATASET}/genotypes/{DATASET}"
 
-leafcutter = config['leafcutter']
+pheno_matrix = prefix + "_pheno.tsv.gz"
+leafcutter_string = ""
+SUPPA_events = ""
+mode_string = "normal"
 
+## LEAFCUTTER SETTINGS
 if "leafcutter" not in config.keys():
     config["leafcutter"] = False
+leafcutter = config['leafcutter']
 if leafcutter == True:
+    print(" * Leafcutter mode!")
     pheno_matrix = prefix + ".leafcutter.phenotype_matrix.tsv"
-    GTF = config["GTF"]
-    leafcutter_string = "--leafcutter"
-else:
-    pheno_matrix = prefix + "_pheno.tsv.gz"
-    leafcutter_string = ""
+    mode_string = "leafcutter"
+
+## SUPPA SETTINGS
+if "SUPPA" not in config.keys():
+    config["SUPPA"] = False
+SUPPA = config['SUPPA']
+if SUPPA == True:
+    print(" * SUPPA mode")
+    SUPPA_events = config["SUPPA_events"]
+    pheno_matrix = prefix + ".SUPPA.phenotype_matrix.tsv.gz"
+    mode_string = "SUPPA"
+
+if leafcutter == True and SUPPA == True:
+    sys.exit(" * You can't run both SUPPA and Leafcutter simultaneously!" )
 
 mmQTL_folder = outFolder + "mmQTL/"
 
@@ -221,6 +263,22 @@ rule prepare_leafcutter:
          --leafcutter_dir {params.leafcutter_dir};  \
          mv -f {wildcards.DATASET}* {outFolder}/{wildcards.DATASET} " 
        )
+
+rule prepare_SUPPA:
+    input:
+        SUPPA_events    
+    output:
+        pheno_matrix = prefix + ".SUPPA.phenotype_matrix.tsv.gz",
+        pheno_meta = prefix + ".SUPPA.phenotype_meta.tsv.gz"
+    params:
+        script = "scripts/prepare_SUPPA.R"
+    run:
+        tx_matrix = metadata_dict[wildcards.DATASET]["phenotypes"]
+        sample_key = metadata_dict[wildcards.DATASET]["sample_key"]
+        shell(
+        "ml {R_VERSION}; \
+         Rscript {params.script} --pheno {tx_matrix} --key {sample_key} --events {input} --prefix {outFolder}{wildcards.DATASET}/{wildcards.DATASET}")
+
 #6. Covariate matrix
 # using PEER
 rule run_PEER:
@@ -268,7 +326,7 @@ rule harmonise_phenotypes:
         prefix = mmQTL_folder
     shell: 
         "ml {R_VERSION};"
-        "Rscript {params.script} --prefix {params.prefix} --metadata {input.pheno_meta}  {input.pheno} {leafcutter_string}"
+        "Rscript {params.script} --prefix {params.prefix} --metadata {input.pheno_meta} --mode {mode_string} {input.pheno} "
 
 ## prepare inputs for mmQTL
 rule prep_mmQTL:
@@ -309,25 +367,27 @@ rule runMMQTL:
         prefix = mmQTL_folder + "output/"
     output:
         mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt"
-    shell:
-        "ml {R_VERSION};"
-        "Rscript {params.script} "
-        " --chrom {wildcards.CHROM} "
-        " --pheno_file {input.pheno} "
-        " --geno_file {mmQTL_folder}/{wildcards.CHROM}_geno_list.txt "
-        " --grm_file {input.grm} "
-        " --pheno_meta {input.pheno_meta} "
-        " --prefix {params.prefix} "
-        " --mmQTL {mmQTL_bin} "
-        " -i {wildcards.CHUNK} "
-        " -n {N_CHUNKS} "
-
+    run:
+        max_chunk = chunk_dict[wildcards.CHROM]['chunk']
+        shell(
+        "ml {R_VERSION};\
+        Rscript {params.script} \
+         --chrom {wildcards.CHROM} \
+         --pheno_file {input.pheno} \
+         --geno_file {mmQTL_folder}/{wildcards.CHROM}_geno_list.txt \
+         --grm_file {input.grm} \
+         --pheno_meta {input.pheno_meta} \
+         --prefix {params.prefix} \
+         --mmQTL {mmQTL_bin} \
+         -i {wildcards.CHUNK} \
+         -n {max_chunk} " )
 #10. Collate mmQTL results
 
 rule mmQTLcollate: 
     input:
-        # paste0(prefix, chrom, "_top_assoc.tsv" )
-        expand(mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt", CHUNK = CHUNKS, allow_missing = True )
+        # use zip to zip together different numbers of chunk per chromosome
+        outputs = expand(mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt", zip, CHUNK = chunk_zip, CHROM = chr_zip ),
+        meta = mmQTL_folder + "phenotype_metadata.tsv"
     output:
         mmQTL_folder + "output/{CHROM}_top_assoc.tsv"
         #mmQTL_folder + "{CHROM}_collated.txt"
@@ -336,7 +396,7 @@ rule mmQTLcollate:
         prefix = mmQTL_folder + "output/"
     shell:
         "ml {R_VERSION};"
-        "Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} --metadata {phenoMeta}" 
+        "Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} --metadata {input.meta}" 
 
 rule topCollate:
     input:
@@ -344,7 +404,7 @@ rule topCollate:
     output:
         mmQTL_folder + dataCode + "_top_assoc.tsv.gz"
     params:
-        script = "scripts/collate_chrom.R"
+        script = "scripts/collate_top_chrom.R"
     shell:
         "ml {R_VERSION};"
         "Rscript {params.script} --output {output} {input}"
@@ -353,15 +413,24 @@ rule fullCollate:
     input:
         mmQTL_folder + dataCode + "_top_assoc.tsv.gz"
     output:
-        mmQTL_folder + dataCode + "_full_assoc.tsv.gz"
+        #tsv = mmQTL_folder + dataCode + "_full_assoc.tsv",
+        gz =  mmQTL_folder + dataCode + "_full_assoc.tsv.gz",
+        tbi = mmQTL_folder + dataCode + "_full_assoc.tsv.gz.tbi"
     params:
+        tsv = mmQTL_folder + dataCode + "_full_assoc.tsv",
         prefix = mmQTL_folder + "output"
     shell:
-        "ml bcftools;"
+        "set +o pipefail;"
+        "ml bcftools/1.9;"
+        "echo time for sorting;"
         "for i in {chromosomes}; do echo $i;"
         "   cat {params.prefix}/${{i}}_*_all_nominal.tsv > {params.prefix}/${{i}}_full_assoc.tsv;"
-        "   sort --parallel=8 -k 4,4n {params.prefix}/${{i}}_full_assoc.tsv > {params.prefix}/${{i}}_full_assoc.sorted.tsv;"
+        "   sort --parallel=4 -k 4,4n {params.prefix}/${{i}}_full_assoc.tsv > {params.prefix}/${{i}}_full_assoc.sorted.tsv;"
         "done;"
-        "zless {input} | head -1 > {params.prefix}/{dataCode}_full_assoc_header.txt;"
-        "cat {params.prefix}/{dataCode}_full_assoc_header.txt {params.prefix}/chr*_full_assoc.sorted.tsv | bgzip > {mmQTL_folder}/{dataCode}_full_assoc.tsv.gz;"
-        "tabix -S 1 -s 3 -b 4 -e 4 {mmQTL_folder}/{dataCode}_full_assoc.tsv.gz "
+        "echo time for concatenating;"
+        "zcat {input} | head -1 > {params.prefix}/{dataCode}_full_assoc_header.txt;"
+        "echo  {params.prefix}/chr{{1..22}}_full_assoc.sorted.tsv ;"
+        "cat {params.prefix}/{dataCode}_full_assoc_header.txt {params.prefix}/chr{{1..22}}_full_assoc.sorted.tsv > {params.tsv};"
+        "bgzip {params.tsv};"
+        "echo time for tabixing;"
+        "tabix -S 1 -s 3 -b 4 -e 4 {output.gz} "

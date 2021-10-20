@@ -10,7 +10,8 @@ library(optparse)
 option_list <- list(
    make_option(c('--prefix'), help = 'stem of out file', default = "results/example/example"),
    make_option(c('--metadata'), help = 'phenotype metadata file', default = ""),
-   make_option(c('--leafcutter'),action="store_true", default=FALSE)
+   make_option(c('--mode'),help = 'how to harmonise - normal (genes, transcripts), SUPPA, leafcutter, txrevise', default="normal"),
+   make_option(c('--min_datasets'), help = ' the minimum number of datasets to keep a feature', default = 3 )
 )
 
 option.parser <- OptionParser(option_list=option_list)
@@ -22,7 +23,8 @@ prefix <- opt$options$prefix
 
 metadata <- opt$options$metadata
 inputs <- opt$args
-leafcutter <- opt$options$leafcutter
+mode <- opt$options$mode
+min_datasets <- opt$options$min_datasets
 
 is.null(metadata)
 print(metadata)
@@ -38,20 +40,33 @@ res <- map( inputs, read_tsv)
 names(res) <- paste0( prefix,  gsub(".tsv.gz", ".harmonised.tsv", basename(inputs) ) )
 
 print(names(res) )
-save.image("debug.RData")
+#save.image("harmonise_debug.RData")
 
-if( !leafcutter){
- shared_features <- map(res, "feature" ) %>% reduce(intersect)
-   
-    meta <- read_tsv(metadata)
+# for leafcutter, throw out cluster ID numbers
+if( mode == "leafcutter" ){
+    res <- map( res ,~{ .x$feature <- gsub(":clu_[0-9]+_[+-]", "", .x$feature); .x })
+}
+
+# remove meddlesome ";" from feature IDs in SUPPA
+if( mode == "SUPPA" ){
+    res <- map( res ,~{ .x$feature <- gsub(";", ":", .x$feature); .x })
+}
+
+# combine features, keep features present in at least 3 datasets - the minimum for mmQTL anyway
+all_features <- unlist(map(res, "feature" ))  
+feature_tally <- enframe(table(all_features) )
+feature_tally <- feature_tally[ feature_tally$value >= min_datasets,]
+ 
+shared_features <- feature_tally$name
+
+if( mode == "normal"){
+
+ meta <- read_tsv(metadata)
     meta <- meta[ meta$feature %in% shared_features, ]
     shared_features <- meta$feature
 }
 
-if( leafcutter ){
-    res <- map( res ,~{ .x$feature <- gsub(":clu_[0-9]+_[+-]", "", .x$feature); .x })
-    shared_features <- map(res, "feature" ) %>% reduce(intersect)
-
+if( mode == "leafcutter" ){
     meta <- as.data.frame(stringr::str_split_fixed(shared_features, ":", 4) )
     print(head(meta) )
     names(meta) <- c("chr", "junc_start", "junc_end", "gene" )
@@ -63,14 +78,33 @@ if( leafcutter ){
     meta <- select(meta, chr, start, end, feature, group = gene)
 }
 
+
+if( mode == "SUPPA" ){
+   feature_split <- stringr::str_split_fixed(shared_features, ":|-", 8)
+    meta <- data.frame(
+        chr = feature_split[,3],
+        start = as.numeric(feature_split[,5]),
+        end = as.numeric(feature_split[,6]),
+        feature = shared_features
+    ) 
+
+
+}
+
 message(" * ", length(shared_features) , " shared features between the datasets" )
 
 
 res <- map(res, ~{ 
     row.names(.x) <- .x$feature
-    .x <- .x[ shared_features, ]
-    names(.x)[1] <- "Gene"
-    return(.x)
+    df <- data.frame( Gene = shared_features, stringsAsFactors = FALSE)
+    df <- left_join(df, .x, by = c("Gene" =  names(.x)[1] ) )
+    df <- tidyr::drop_na(df)
+    #df[ is.na(df) ] <- 0
+    #.x <- .x[ shared_features, ]
+    #names(.x)[1] <- "Gene"
+    #.x <- tidyr::drop_na(.x) # remove NA rows from missing features
+    #return(.x)
+    return(df)
     })
 
 walk2( res, names(res), ~{ write_tsv(.x, .y) })

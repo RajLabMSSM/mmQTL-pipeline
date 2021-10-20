@@ -63,7 +63,7 @@ run_mmQTL <- function(meta_loc, j){
      
     feature_j <- meta_loc[j, ]$feature
 
-    cmd1 <- paste0( "./", mmqtl_bin,
+    cmd1 <- paste0( "./MMQTL_bin/", mmqtl_bin,
         " -b ", 
         " -P ", pheno_file,
         " -Z ", geno_file,
@@ -73,7 +73,7 @@ run_mmQTL <- function(meta_loc, j){
         " -A random ",
         " -gene ", feature_j,
         " --threads 4" ,
-        " --out ", prefix,
+        #" --out ", prefix,## adding this kills the analysis
         " --primary_only ", ## TODO - make optional
         " -V ", format(cis_window, scientific = FALSE, digits = 1)
         # MMQTL24 -b  -P  pheno_file.txt   -Z  geno_file.txt   -R GRM_file.txt -a feature_annotation.bed  -A random   -gene  gene_name 

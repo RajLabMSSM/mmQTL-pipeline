@@ -19,5 +19,6 @@ inputs <- opt$args
 
 library(tidyverse)
 res <- map_df( inputs, read_tsv)
-
+res$qval <- qvalue::qvalue(res$Random_FDR)$qval
+res <- arrange(res, qval)
 write_tsv(res, output)
