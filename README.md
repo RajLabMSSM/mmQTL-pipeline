@@ -41,3 +41,11 @@ If the user wants to perform junction usage QTLs (Leafcutter splicing QTLs) then
 
 The user must provide an exon metadata created from a GTF of the user's choice using `scripts/get_gene_meta_from_gtf.R` in "exon" mode. Phenotype metadata for the junctions will be created by the pipeline.
 
+Then prepare the full leafcutter junction matrix for the entire cohort:
+
+```
+Rscript scripts/prepare_leafcutter_matrix.R --prefix <prefix> --junctions <junction list> --exons <exon metadata> 
+```
+
+Where prefix is a directory followed by the stem of a filename, ie "junctions/test"
+
