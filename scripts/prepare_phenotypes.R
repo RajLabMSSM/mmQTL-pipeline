@@ -49,12 +49,12 @@ sk <- read_tsv(sample_key)
 # subset out samples only present in sample_key
 stopifnot( all( sk$sample_id %in% names(pheno) ) )
 
+if( "group" %in% names(pheno) ){pheno$group <- NULL }
+
+
 # if single feature
-if( group == FALSE ){
 pheno <- pheno[, c(names(pheno)[1], sk$sample_id) ]
-}else{
-pheno <-  pheno[, c(names(pheno)[1:2], sk$sample_id) ]
-}
+
 message(" * ", ncol(pheno), " samples kept from sample key " )
 
 # remove features from chromosomes not present in VCF - TODO
@@ -69,16 +69,15 @@ message( " * ", nrow(meta), " autosomal features kept " )
 print(head(meta) )
 
 # rename columns from samples to donors (participant_id in sample key)
-if( group == FALSE){
-    names(pheno) <- c("feature", sk$participant_id )
-}else{
-    names(pheno) <- c("feature", "group", sk$participant_id )
-}
+names(pheno) <- c("feature", sk$participant_id )
+
 #print(head(pheno) )
 pheno <- column_to_rownames(pheno, var = "feature" )
 
 # subset out features found in metadata and reorder
 pheno <- pheno[ meta$feature, ]
+
+save.image("debug.RData")
 
 message(" * ", nrow(pheno), " features present in metadata" )
 
@@ -93,6 +92,9 @@ meta <- meta[ row.names(pheno), ]
 
 message(" * ", nrow(pheno), " features pass missingness thresholds" )
 
+# log normalise matrix
+pheno <- log2(pheno + 1) 
+
 }
 
 
@@ -100,7 +102,7 @@ message(" * ", nrow(pheno), " features pass missingness thresholds" )
 # apply low expression filter
 # remove any singleton features  
 if( group == TRUE){
-    pheno$group <- NULL
+    message(" * grouping ")
     features_clean <- rowSums(pheno >= min_threshold) > min_fraction * ncol(pheno)
     pheno <- pheno[ features_clean, ]
     meta <- meta[ row.names(pheno), ]
@@ -111,20 +113,18 @@ if( group == TRUE){
     pheno <- pheno[meta$feature,]    
 
     pheno_split <- split(pheno, meta$group )
-    pheno_ratio <- map_df( pheno_split, ~{
+    pheno <- map_df( pheno_split, ~{
         df <- sweep(.x, MARGIN = 2, STATS =  colSums(.x), FUN = "/")
         as.data.frame(df)
     })
-
+    # set divide by 0 errors to 0
+    pheno[ is.na(pheno) ] <- 0
 }
 
 message(" * ", nrow(pheno), " features pass missingness thresholds" )
 #save.image("debug.RData")
 
 
-
-# log normalise matrix
-pheno <- log2(pheno + 1) 
 # scale and centre to means of 0 and SD of 1 
 pheno <- as.data.frame(t(scale(t(pheno) )))
 

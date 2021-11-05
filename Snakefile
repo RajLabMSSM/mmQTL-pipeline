@@ -7,7 +7,7 @@ import os
 import itertools
 
 R_VERSION = "R/4.0.3"
-mmQTL_bin = "MMQTL26a"
+mmQTL_bin = "/sc/arion/projects/als-omics/microglia_isoseq/mmQTL-pipeline/MMQTL_bin/MMQTL26a"
 
 
 # set chunk number
@@ -87,7 +87,8 @@ if "leafcutter" not in config.keys():
 leafcutter = config['leafcutter']
 if leafcutter == True:
     print(" * Leafcutter mode!")
-    pheno_matrix = prefix + ".leafcutter.phenotype_matrix.tsv"
+    # TESTING
+    #pheno_matrix = prefix + ".leafcutter.phenotype_matrix.tsv"
     mode_string = "leafcutter"
 
 ## SUPPA SETTINGS
@@ -104,6 +105,7 @@ if leafcutter == True and SUPPA == True:
     sys.exit(" * You can't run both SUPPA and Leafcutter simultaneously!" )
 
 mmQTL_folder = outFolder + "mmQTL/"
+mmQTL_tmp_folder = outFolder + "mmQTL/mmQTL_tmp/"
 
 def write_list_to_file(my_list, file_name):
     with open(file_name, 'w') as f:
@@ -206,6 +208,7 @@ rule prepare_pheno:
         pheno_meta = phenoMeta,
         script = "scripts/prepare_phenotypes.R"
     run:
+        print(metadata_dict[wildcards.DATASET])
         pheno = metadata_dict[wildcards.DATASET]["phenotypes"]
         sk = metadata_dict[wildcards.DATASET]["sample_key"]
         #pheno_meta = metadata_dict[wildcards.DATASET]["phenotype_info"]
@@ -364,9 +367,9 @@ rule runMMQTL:
         pheno_meta = mmQTL_folder + "phenotype_metadata.tsv"
     params:
         script = "scripts/run_mmQTL.R",
-        prefix = mmQTL_folder + "output/"
+        prefix = mmQTL_tmp_folder
     output:
-        mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt"
+        mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt"
     run:
         max_chunk = chunk_dict[wildcards.CHROM]['chunk']
         shell(
@@ -386,21 +389,20 @@ rule runMMQTL:
 rule mmQTLcollate: 
     input:
         # use zip to zip together different numbers of chunk per chromosome
-        outputs = expand(mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt", zip, CHUNK = chunk_zip, CHROM = chr_zip ),
+        outputs = expand(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt", zip, CHUNK = chunk_zip, CHROM = chr_zip ),
         meta = mmQTL_folder + "phenotype_metadata.tsv"
     output:
-        mmQTL_folder + "output/{CHROM}_top_assoc.tsv"
-        #mmQTL_folder + "{CHROM}_collated.txt"
+        mmQTL_tmp_folder + "{CHROM}_top_assoc.tsv"
     params:
         script = "scripts/collate_mmQTL.R",
-        prefix = mmQTL_folder + "output/"
+        prefix = mmQTL_tmp_folder
     shell:
         "ml {R_VERSION};"
         "Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} --metadata {input.meta}" 
 
 rule topCollate:
     input:
-        expand(mmQTL_folder + "output/{CHROM}_top_assoc.tsv", CHROM = chromosomes)
+        expand(mmQTL_tmp_folder + "{CHROM}_top_assoc.tsv", CHROM = chromosomes)
     output:
         mmQTL_folder + dataCode + "_top_assoc.tsv.gz"
     params:
@@ -418,7 +420,7 @@ rule fullCollate:
         tbi = mmQTL_folder + dataCode + "_full_assoc.tsv.gz.tbi"
     params:
         tsv = mmQTL_folder + dataCode + "_full_assoc.tsv",
-        prefix = mmQTL_folder + "output"
+        prefix = mmQTL_tmp_folder
     shell:
         "set +o pipefail;"
         "ml bcftools/1.9;"

@@ -12,11 +12,13 @@
 
 library(optparse)
 library(readr)
+library(edgeR)
 
 option_list <- list(
    make_option(c('--prefix'), help = 'stem of out file, including output directory', default = "results/example/example"),
    make_option(c('--junctions'), help = 'list of junction files', default = ""),
-   make_option(c('--exons'), help = 'the exon metadata', default = "")
+   make_option(c('--exons'), help = 'the exon metadata', default = ""),
+   make_option(c('--rerun'), help = "redo step 3 only", default = TRUE, action = "store_false")
 )
 
 option.parser <- OptionParser(option_list=option_list)
@@ -27,7 +29,7 @@ opt <- parse_args(option.parser)
 prefix <- opt$prefix
 exons <- opt$exons
 junctions  <- opt$junctions
-
+rerun <- opt$rerun
 outFile <- basename(prefix)
 outFolder <- dirname(prefix)
 
@@ -41,8 +43,9 @@ stopifnot( all(file.exists(junc_files) ) )
 cmd <- paste0("python scripts/leafcutter/leafcutter_cluster_regtools.py -j ", junctions, " -o ", outFile, " -r ", outFolder, " -l 250000 --checkchrom=True" )
 print(" * clustering junctions ")
 print(cmd)
-system(cmd)
-
+if( rerun){
+    system(cmd)
+}
 count_matrix <- paste0( prefix, "_perind.counts.gz" )
 junc_matrix <- paste0( prefix, "_perind_numers.counts.gz")
 stopifnot( file.exists( count_matrix) )
@@ -55,17 +58,21 @@ gene_map <- paste0(prefix, "_gene_map.tsv")
 cmd <- paste("ml R/4.0.3; Rscript  scripts/leafcutter/map_clusters_to_genes.R --output_dir . ", count_matrix, " ", exons, " ", gene_map )
 print(cmd)
 print(" * mapping genes to clusters" )
-system(cmd)
+if( rerun ){
+    system(cmd)
+}
 
 stopifnot( file.exists( gene_map) )
 
-#save.image("debug.RData")
+save.image("debug.RData")
 ## step 3: prepare junction count matrix and metadata
 message(" * preparing matrix and metadata")
 
 junc_df <- read.table( junc_matrix, header=TRUE, check.names = FALSE)
 gene_df <- read.table( gene_map, header=TRUE, check.names = FALSE)
 gene_df$clu <- gsub(".*:", "", gene_df$clu)
+
+message(" * ", nrow(junc_df), " junctions in matrix") 
 
 get_intron_meta <- function(introns){
     intron_meta = do.call(rbind, strsplit(introns, ":"))
@@ -86,10 +93,22 @@ intron_meta$gene <- gsub(",", "\\+", intron_meta$gene)
 intron_meta$group <- intron_meta$clu
 intron_meta <- intron_meta[, c("chr", "start", "end", "feature", "group", "gene") ]
 
+# remove junctions not mapped to genes
+intron_meta <- intron_meta[!is.na(intron_meta$gene),]
+
+junc_df <- junc_df[intron_meta$feature,]
+
+## prepare junction matrix
+# cpm normalisatino
+junc_df <- as.data.frame(edgeR::cpm(junc_df))
+
+
 junc_df$feature <- intron_meta$feature
 row.names(junc_df) <- NULL
 
 junc_df <- junc_df[, c("feature", names(junc_df)[1:ncol(junc_df)-1] ) ]
+
+message(" * ", nrow(junc_df), " junctions mapped to genes") 
 
 ## write out
 write_tsv(junc_df, paste0(prefix, "_leafcutter_junction_matrix.tsv.gz") )

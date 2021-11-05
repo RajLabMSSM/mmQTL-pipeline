@@ -19,7 +19,8 @@ out_file <- opt$out
 library(tidyverse)
 
 pheno <- read_tsv(pheno_file)
-cov <- read_tsv(cov_file)
+# read_tsv was assuming InferredCov was Infinite, for some stupid reason
+cov <- read.table(cov_file, header=TRUE)
 
 save.image("debug.RData")
 

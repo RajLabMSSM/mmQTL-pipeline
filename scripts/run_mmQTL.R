@@ -1,4 +1,5 @@
 
+options(echo=TRUE)
 ## RUN MMQTL
 
 # Jack Humphrey
@@ -21,21 +22,27 @@ option_list <- list(
     make_option(c('--pheno_file'), help = "path to pheno list file"),
     make_option(c('--grm_file'), help = "path to GRM list file"),
     make_option(c('--cov_file'), help = "path to covariate_file"),
-    make_option(c('--mmQTL'), help = "path to MMQTL executable", default = "MMQTL25")
+    make_option(c('--mmQTL'), help = "full path to MMQTL executable", default = "MMQTL25")
 )
 
+absPath <- function(path){
+    if(is.null(path) ){ return()}
+    if(file.exists(path) ){
+        normalizePath(path)
+    }
+}
 option.parser <- OptionParser(option_list=option_list)
 opt <- parse_args(option.parser)
 
 chrom <- opt$chrom
-meta_file <- opt$pheno_meta
-geno_file <- opt$geno_file
-pheno_file <- opt$pheno_file
-cov_file <- opt$cov_file
-grm_file <- opt$grm_file
+meta_file <- absPath(opt$pheno_meta)
+geno_file <- absPath(opt$geno_file)
+pheno_file <- absPath(opt$pheno_file)
+cov_file <- absPath(opt$cov_file)
+grm_file <- absPath(opt$grm_file)
 i_chunk <- as.numeric(opt$chunk)
 n_chunk <- as.numeric(opt$chunk_total)
-prefix <- opt$prefix
+prefix <- absPath(opt$prefix)
 mmqtl_bin <- opt$mmQTL
 
 cis_window <- 1e6
@@ -55,15 +62,18 @@ split_chunks <- function(meta, i, n){
    return(chunk)
 }
 
+# run commands from within outFolder
+setwd(prefix)
 # get out the i'th chunk of features
 # make a system call to MMQTL for each feature
 # handle exceptions somehow
 # for j'th entry in meta_loc, make system call to MMQTL
+
 run_mmQTL <- function(meta_loc, j){
      
     feature_j <- meta_loc[j, ]$feature
 
-    cmd1 <- paste0( "./MMQTL_bin/", mmqtl_bin,
+    cmd1 <- paste0( mmqtl_bin,
         " -b ", 
         " -P ", pheno_file,
         " -Z ", geno_file,
@@ -79,11 +89,13 @@ run_mmQTL <- function(meta_loc, j){
         # MMQTL24 -b  -P  pheno_file.txt   -Z  geno_file.txt   -R GRM_file.txt -a feature_annotation.bed  -A random   -gene  gene_name 
     )
     print(cmd1)
+    
     system(cmd1)
+    
     # move outputs to correct folder
-    cmd2 <- paste0( "mv ", feature_j, " ", prefix, "/" )
-    print(cmd2)
-    system(cmd2)
+    #cmd2 <- paste0( "mv ", feature_j, " ", prefix, "/" )
+    #print(cmd2)
+    #system(cmd2)
     
 }
 

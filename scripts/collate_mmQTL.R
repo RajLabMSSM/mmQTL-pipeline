@@ -15,6 +15,7 @@ option_list <- list(
    make_option(c('--prefix'), help = 'stem of out file', default = "results/example/example"),
    make_option(c('--metadata'), help = 'phenotype metadata file', default = ""),
    make_option(c('--chrom'), help = 'the chromosome', default = "")
+   # add data key here to get order of datasets
 )
 
 option.parser <- OptionParser(option_list=option_list)
@@ -35,6 +36,8 @@ library(dplyr)
 message(" * collating ", chrom )
 
 meta <- read_tsv(pheno_meta, col_names = c("chr", "start", "end", "feature") )
+
+stopifnot(chrom %in% meta$chr )
 
 meta_loc <- meta[ meta$chr %in% chrom, ]
 
@@ -58,6 +61,18 @@ bim_res <- purrr::map_df(bim_files, read_tsv, col_names = c("chr", "Variant","n"
 bim_res$chr <- paste0("chr", bim_res$chr)
 bim_res$n <- NULL
 
+# get number of datasets
+n_datasets <- length(bim_files)
+
+# some features do not use all datasets in their meta-analysis
+# and thus have missing columns which messes up concatenation
+## prepare columns according to the number of datasets
+data_cols <- paste0(rep(c("beta_", "sd_", "z_"),3), paste0("tissue_", sort(rep(0:(n_datasets-1),3) ) ) )
+
+all_cols <- c("Variant", "Allele", data_cols, "fixed_beta", "fixed_sd", "fixed_z", "Random_Z" )
+
+dummy_cols <- setNames(data.frame(matrix(ncol = length(all_cols), nrow = 1) ), all_cols) 
+
 ## functions
 add_P <- function(data){
     data$Fixed_P <- 2*pnorm(q=abs(data$fixed_z), lower.tail=FALSE)
@@ -71,18 +86,25 @@ add_P <- function(data){
 
 top_assoc <- list()
 
+#save.image("debug.RData")
+#stop()
 for(feature in features_loc){
     print(feature)
-    f <- files_loc[ feature ]
-    d <- read_tsv(f)
+    d <- read_tsv(files_loc[ feature ])
     # ignore empty or malformed files
     if( nrow(d) == 0 ){
       next
     }
     if( !"fixed_z" %in% names(d) ){ next}
+    # standardise columns
+    d <- bind_rows(dummy_cols, d)
+    d <- d[2:nrow(d), ]
+
     d$feature <- feature
     # add P values
     d <- add_P(d)
+    # add in SNP info
+    # standardise columns HERE
     d <- left_join(d, bim_res, by = "Variant") %>%
         arrange(pos) %>%
         select(feature, variant_id = Variant, chr, pos, ref, alt, everything() )

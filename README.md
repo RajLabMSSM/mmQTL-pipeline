@@ -33,6 +33,12 @@ Transcript metadata must be created from the same GTF as used to create the tran
 
 * Other features (SUPPA, txrevise etc)
 
+* SUPPA local splicing events
+
+```
+python3.4 suppa.py generateEvents -i <input-file.gtf> -o <output-file> -f ioe -e <list-of-events>
+```
+
 To be described.
 
 * Junctions

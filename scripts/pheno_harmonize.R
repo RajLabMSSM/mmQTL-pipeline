@@ -43,9 +43,10 @@ print(names(res) )
 #save.image("harmonise_debug.RData")
 
 # for leafcutter, throw out cluster ID numbers
-if( mode == "leafcutter" ){
-    res <- map( res ,~{ .x$feature <- gsub(":clu_[0-9]+_[+-]", "", .x$feature); .x })
-}
+# NOW keep those in
+#if( mode == "leafcutter" ){
+#    res <- map( res ,~{ .x$feature <- gsub(":clu_[0-9]+_[+-]", "", .x$feature); .x })
+#}
 
 # remove meddlesome ";" from feature IDs in SUPPA
 if( mode == "SUPPA" ){
