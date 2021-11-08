@@ -14,7 +14,8 @@ library(optparse)
 option_list <- list(
    make_option(c('--prefix'), help = 'stem of out file', default = "results/example/example"),
    make_option(c('--metadata'), help = 'phenotype metadata file', default = ""),
-   make_option(c('--chrom'), help = 'the chromosome', default = "")
+   make_option(c('--chrom'), help = 'the chromosome', default = ""),
+   make_option(c('--geno'), help = 'path to genotype folder', default = "")
    # add data key here to get order of datasets
 )
 
@@ -52,7 +53,8 @@ names(files_loc) <- features_loc
 
 message( " * ", length(files_loc), " to collate" )
 
-geno_folder <- dirname(dirname(prefix) )
+#geno_folder <- dirname(dirname(prefix) )
+geno_folder <- opt$geno
 ## get SNP coordinates from the coordinate BIM files for each dataset
 bim_files <- list.files( geno_folder, pattern = paste0("*", chrom, ".bim" ), recursive = TRUE, full.names = TRUE )
 ## read in and get distinct rows

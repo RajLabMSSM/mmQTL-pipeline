@@ -44,7 +44,11 @@ chromosomes = ["chr" + str(i) for i in range(1,23) ]
 
 #print(chromosomes)
 
+# all feature-specific and QTL mapping data go to specific outFolder
 outFolder = config['outFolder']
+
+# genotype data is always shared between analyses so put in separate shared folder
+genoFolder = os.path.join(outFolder,"genotypes/")
 
 if "phenoMeta" not in config.keys():
     config['phenoMeta'] = "" 
@@ -74,7 +78,7 @@ metadata_dict = meta.set_index("dataset").T.to_dict()
 #expand on PEER
 GTF = config["GTF"]
 prefix = outFolder + "{DATASET}/{DATASET}"
-geno_prefix = outFolder + "{DATASET}/genotypes/{DATASET}"
+geno_prefix = genoFolder + "{DATASET}/{DATASET}"
 
 pheno_matrix = prefix + "_pheno.tsv.gz"
 leafcutter_string = ""
@@ -348,7 +352,7 @@ rule prep_mmQTL:
            plink_files = [ os.path.splitext(i)[0] for i in input.geno ]
            # for each chromosome write a list of genotype files
            for CHROM in chromosomes:
-               geno_chrom_files = [outFolder + d + "/genotypes/" + d + "_genotypes_" + CHROM for d in datasets ]     
+               geno_chrom_files = [genoFolder + d + "/" + d + "_genotypes_" + CHROM for d in datasets ]     
                geno_chrom_out = mmQTL_folder + CHROM + "_geno_list.txt"
                write_list_to_file( geno_chrom_files, geno_chrom_out )
 
@@ -398,7 +402,7 @@ rule mmQTLcollate:
         prefix = mmQTL_tmp_folder
     shell:
         "ml {R_VERSION};"
-        "Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} --metadata {input.meta}" 
+        "Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} --metadata {input.meta} --geno {genoFolder}" 
 
 rule topCollate:
     input:
@@ -430,7 +434,8 @@ rule fullCollate:
         "   sort --parallel=4 -k 4,4n {params.prefix}/${{i}}_full_assoc.tsv > {params.prefix}/${{i}}_full_assoc.sorted.tsv;"
         "done;"
         "echo time for concatenating;"
-        "zcat {input} | head -1 > {params.prefix}/{dataCode}_full_assoc_header.txt;"
+        # qval column in top needs to be removed from header to make full assoc
+        "zcat {input} | head -1 | awk 'BEGIN{{OFS=\"\t\"}}{{$NF=$(NF-1); print $0}}' > {params.prefix}/{dataCode}_full_assoc_header.txt;"
         "echo  {params.prefix}/chr{{1..22}}_full_assoc.sorted.tsv ;"
         "cat {params.prefix}/{dataCode}_full_assoc_header.txt {params.prefix}/chr{{1..22}}_full_assoc.sorted.tsv > {params.tsv};"
         "bgzip {params.tsv};"
