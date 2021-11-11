@@ -112,18 +112,23 @@ meta_loc <- split_chunks(meta_loc,i_chunk , n_chunk)
 
 message( " * ", nrow(meta_loc), " features in chunk ", i_chunk, " of ", n_chunk )
 
-stopifnot( nrow(meta_loc) > 0 )
+#stopifnot( nrow(meta_loc) > 0 )
 
 # write out chunked metadata and use in mmQTL script as metadata - may save time
 meta_chunk_file <- paste0(prefix, "/", chrom, "_chunk_", i_chunk, "_meta.tsv" )
 readr::write_tsv(meta_loc, meta_chunk_file, col_names = FALSE)
 
-# for the chunk of features, iterate through 
-for( j in 1:nrow(meta_loc) ){
-
-    run_mmQTL(meta_loc, j)
-
-}
 
 out_file <- paste0(prefix, "/", chrom, "_chunk_", i_chunk, "_output.txt" )
+
+if( nrow(meta_loc) > 0){
+# for the chunk of features, iterate through 
+    for( j in 1:nrow(meta_loc) ){
+
+        run_mmQTL(meta_loc, j)
+
+    }
+}
+
 writeLines( c("success"), out_file)
+

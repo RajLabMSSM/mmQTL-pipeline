@@ -435,7 +435,7 @@ rule fullCollate:
         "done;"
         "echo time for concatenating;"
         # qval column in top needs to be removed from header to make full assoc
-        "zcat {input} | head -1 | awk 'BEGIN{{OFS=\"\t\"}}{{$NF=$(NF-1); print $0}}' > {params.prefix}/{dataCode}_full_assoc_header.txt;"
+        "zcat {input} | head -1 | awk 'BEGIN{{OFS=\"\t\"}}NF{{NF-=1}};1' > {params.prefix}/{dataCode}_full_assoc_header.txt;"
         "echo  {params.prefix}/chr{{1..22}}_full_assoc.sorted.tsv ;"
         "cat {params.prefix}/{dataCode}_full_assoc_header.txt {params.prefix}/chr{{1..22}}_full_assoc.sorted.tsv > {params.tsv};"
         "bgzip {params.tsv};"
