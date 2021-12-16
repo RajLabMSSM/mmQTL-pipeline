@@ -55,6 +55,17 @@ if "phenoMeta" not in config.keys():
 phenoMeta = config['phenoMeta']
 dataCode = config['dataCode']
 
+# set defaults for filtering phenotypes
+# default should be TPM >1 in >= 50% of samples
+# do not filter leafcutter
+if "phenoThreshold" not in config.keys():
+    config['phenoThreshold'] = 1
+if "phenoFraction" not in config.keys():
+    config['phenoFraction'] = 0.5
+
+pheno_threshold = config['phenoThreshold']
+pheno_fraction = config['phenoFraction']
+
 outFolder = os.path.join(outFolder, dataCode) + "/"
 print( " output folder = " + outFolder)
 ####################################################
@@ -205,7 +216,7 @@ rule generateGRM:
         " Rscript {params.script} --prefix {params.stem}_GRM  "
 
 #5. Normalise phenotype matrix
-rule prepare_pheno:
+rule prepare_phenotypes:
     output:
         prefix + "_pheno.tsv.gz"
     params:
@@ -214,10 +225,13 @@ rule prepare_pheno:
     run:
         print(metadata_dict[wildcards.DATASET])
         pheno = metadata_dict[wildcards.DATASET]["phenotypes"]
+        counts_string = ""
+        if "counts" in meta.columns:
+            counts_string = "--counts " + metadata_dict[wildcards.DATASET]["counts"]
         sk = metadata_dict[wildcards.DATASET]["sample_key"]
         #pheno_meta = metadata_dict[wildcards.DATASET]["phenotype_info"]
-        threshold = 1,
-        fraction = 0.5,
+        threshold = pheno_threshold,
+        fraction = pheno_fraction,
         group_string = ""
         if( group_features == True):
             group_string = " --group "
@@ -227,6 +241,7 @@ rule prepare_pheno:
         --key {sk} \
         --pheno_matrix {pheno} \
         --pheno_meta {params.pheno_meta} \
+        {counts_string} \
         {group_string} \
         --threshold {threshold} \
         --fraction {fraction} \

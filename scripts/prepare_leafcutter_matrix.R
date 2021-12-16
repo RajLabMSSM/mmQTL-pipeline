@@ -64,7 +64,7 @@ if( rerun ){
 
 stopifnot( file.exists( gene_map) )
 
-save.image("debug.RData")
+save.image("leafcutter_debug.RData")
 ## step 3: prepare junction count matrix and metadata
 message(" * preparing matrix and metadata")
 

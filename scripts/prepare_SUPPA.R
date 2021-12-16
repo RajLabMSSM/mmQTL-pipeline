@@ -47,13 +47,13 @@ names(tx_matrix) <- samples$participant_id
 
 write.table(tx_matrix, file = tx_out,  sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE) 
 
-save.image("debug.RData")
+#save.image("debug.RData")
 
 message(" * ", nrow(tx_matrix), " transcripts for testing")
 
 message(" * running SUPPA")
 ## run SUPPA command 
-cmd <- paste0('ml anaconda3; CONDA_BASE=$(conda info --base); source $CONDA_BASE/etc/profile.d/conda.sh; ml purge; conda activate isoseq-pipeline; suppa.py psiPerEvent -i ', events, ' -e ', tx_out, ' -o ', prefix )
+cmd <- paste0('ml anaconda3; CONDA_BASE=$(conda info --base); source $CONDA_BASE/etc/profile.d/conda.sh; ml purge; conda activate isoseq-pipeline; suppa.py psiPerEvent -f 1 -i ', events, ' -e ', tx_out, ' -o ', prefix )
 #"suppa.py psiPerEvent -i {input.events} -e {input.tpm} -o {params.prefix};"
 
 system(cmd)
@@ -67,11 +67,42 @@ pheno <- read.table(psi_in, sep = "\t", header= TRUE, check.names = FALSE)
 
 message(" * ", nrow(pheno), " events read in" )
 
+
+# deal with missing data
+miss_rate <- sum( is.na(pheno) ) / (nrow(pheno) * ncol(pheno) )
+
+message( " * missing data rate: ", miss_rate )
+
+# NA values occurs when all transcripts are 0 in a sample - in this case impute with the mean
+# only impute rows with < 10% missing data
+missing_data <- rowSums(is.na(pheno) ) <= 0.1 * ncol(pheno)
+message(" * removing ", sum(!missing_data), " rows with > 10% missingness")
+pheno <- pheno[ missing_data,]
+# then impute missing entries with row mean
+na_entries <- which(is.na(pheno), arr.ind=TRUE)
+pheno[na_entries] <- rowMeans(pheno, na.rm=TRUE)[na_entries[,"row"]]
+
+
+# a few weird entries where transcripts are duplicated - all PSI are 0.5
+row_sd <- apply(pheno, MARGIN = 1, sd)
+message(" * removing ", sum(row_sd == 0), " features with 0 SD" )
+pheno <- pheno[ row_sd > 0,]
+message( " * ", nrow(pheno), " features kept")
+
+
 # scale and centre to means of 0 and SD of 1 
 pheno <- as.data.frame(t(scale(t(pheno) )))
 
+# quantile norm
+message(" * quantile normalize individuals" )
+pheno_q <- as.data.frame(preprocessCore::normalize.quantiles(data.matrix(pheno)))
+colnames(pheno_q) <- colnames(pheno)
+row.names(pheno_q) <- row.names(pheno)
+
+pheno <- pheno_q
+
 # remove rows with NaN
-pheno <- tidyr::drop_na(pheno)
+#pheno <- tidyr::drop_na(pheno_qq)
 
 # put in first column
 pheno <- tibble::rownames_to_column(pheno, var = "feature")

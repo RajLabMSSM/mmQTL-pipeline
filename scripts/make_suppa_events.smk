@@ -18,6 +18,6 @@ rule SUPPA_events:
         prefix = prefix + ".events"
     shell:
         "conda activate isoseq-pipeline;"
-        "suppa.py generateEvents -i {input} -o {params.prefix} -e SE SS MX RI FL -f ioe --pool-genes;"
+        "suppa.py generateEvents -i {input} -o {params.prefix} -b V -t 10 -e SE SS MX RI FL -f ioe --pool-genes;"
         " awk 'FNR==1 && NR!=1 {{ while (/^<header>/) getline; }} 1 {{print}}' {output.events} > {output.total}"
 
