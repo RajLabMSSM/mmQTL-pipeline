@@ -21,9 +21,9 @@ features=(
     #GENCODE_SUPPA_AL
     #isoseq_SUPPA_SE
     #GENCODE_SUPPA_SE
-    isoseq_SUPPA_A3
-    GENCODE_SUPPA_A3
-    isoseq_SUPPA_A5
+    #isoseq_SUPPA_A3
+    #GENCODE_SUPPA_A3
+    #isoseq_SUPPA_A5
     GENCODE_SUPPA_A5
 )
 
