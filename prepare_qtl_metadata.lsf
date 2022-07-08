@@ -1,0 +1,36 @@
+#BSUB -J prepare_qtl_metadata
+#BSUB -P acc_als-omics
+#BSUB -q express
+#BSUB -n 1
+#BSUB -R span[ptile=1]
+#BSUB -R rusage[mem=50000]
+#BSUB -W 06:00
+#BSUB -o %J.stdout
+#BSUB -eo %J.stderr
+#BSUB -L /bin/bash
+
+GTF="/sc/arion/projects/als-omics/microglia_isoseq/Erica/references/combined_063022.gtf"
+CODE="gencode_v38_isoseq_novel_tx"
+
+# make SUPPA events
+
+export PS1=""; ml anaconda3; CONDA_BASE=$(conda info --base); source $CONDA_BASE/etc/profile.d/conda.sh
+module purge
+conda activate isoseq-pipeline
+suppa.py generateEvents -i $GTF -o SUPPA/${CODE}/${CODE} -e SE SS MX RI FL -f ioe
+
+exit 0
+
+
+ml R/4.0.3
+# make gene annotation
+Rscript scripts/get_gene_meta_from_gtf.R  --gtf $GTF --mode gene --prefix input/${CODE}
+# make exon annotation
+Rscript scripts/get_gene_meta_from_gtf.R  --gtf $GTF --mode exon --prefix input/${CODE}
+# make transcript annotation
+Rscript scripts/get_gene_meta_from_gtf.R  --gtf $GTF --mode transcript  --prefix input/${CODE}
+
+# make leafcutter matrix
+
+Rscript scripts/prepare_leafcutter_matrix.R --prefix leafcutter/${CODE}  --junctions leafcutter/all_junctions.txt --exons input/${CODE}_exon_pheno_meta.tsv  
+

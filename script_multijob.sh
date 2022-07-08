@@ -24,7 +24,16 @@ features=(
     #isoseq_SUPPA_A3
     #GENCODE_SUPPA_A3
     #isoseq_SUPPA_A5
-    GENCODE_SUPPA_A5
+    #GENCODE_SUPPA_A5
+    union_expression
+    union_transcript
+    union_leafcutter
+    union_SUPPA_A3
+    union_SUPPA_A5
+    union_SUPPA_AL
+    union_SUPPA_AF
+    union_SUPPA_RI
+    union_SUPPA_SE
 )
 
 for i in ${features[@]};do

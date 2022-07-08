@@ -1,4 +1,4 @@
-## Make a phenotype matrix file from a GTF
+## Make a phenotype metadata file from a GTF
 ## Jack Humphrey
 ## 2021
 # arguments:
@@ -30,7 +30,7 @@ stopifnot( file.exists(in_gtf) )
 stopifnot( mode %in% c("gene", "transcript", "exon" ) )
 
 
-out_file <- paste0(prefix, "_", mode, "_pheno_matrix.tsv")
+out_file <- paste0(prefix, "_", mode, "_pheno_meta.tsv")
 
 shhh(library(rtracklayer))
 shhh(library(dplyr) )
