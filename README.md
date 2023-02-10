@@ -1,8 +1,11 @@
 # mmQTL-pipeline
 
 Jack Humphrey & Erica Brophy
+
 Towfique Raj Lab
+
 Mount Sinai, New York
+
 2021-2023
 
 

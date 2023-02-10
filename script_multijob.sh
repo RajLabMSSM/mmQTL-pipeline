@@ -7,15 +7,15 @@ set -e
 
 # make sure that the feature name in the config matches the dataCode in the config!
 features=(
-    #GENCODE_expression 
-    #GENCODE_transcript 
-    #GENCODE_leafcutter
-    #GENCODE_SUPPA_AF
-    #GENCODE_SUPPA_RI
+    GENCODE_expression 
+    GENCODE_transcript 
+    GENCODE_leafcutter
+    GENCODE_SUPPA_AF
+    GENCODE_SUPPA_RI
     GENCODE_SUPPA_AL
-    #GENCODE_SUPPA_SE
-    #GENCODE_SUPPA_A3
-    #GENCODE_SUPPA_A5
+    GENCODE_SUPPA_SE
+    GENCODE_SUPPA_A3
+    GENCODE_SUPPA_A5
     #isoseq_expression 
     #isoseq_transcript 
     #isoseq_leafcutter

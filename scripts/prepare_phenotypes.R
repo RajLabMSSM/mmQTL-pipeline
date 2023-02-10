@@ -87,38 +87,41 @@ message(" * ", nrow(pheno), " features present in metadata" )
 
 # apply missingness thresholds
 # right now assume non-grouped phenotypes are gene expression
+
+# Gene Expression or Transcript Expression
 if( group == FALSE ){
     
     features_clean <- rowSums(pheno >= min_threshold) > min_fraction * ncol(pheno)
 
-if( is.na(counts) ){
-    message(" * using TPM matrix")
-    # use TPMs as phenotype. Filter and log normalise
-    pheno <- pheno[ features_clean, ]
-    meta <- meta[ row.names(pheno), ]
-    # log normalise matrix
-    pheno <- log2(pheno + 1) 
+    if( is.na(counts) ){
+        message(" * using TPM matrix only")
+        # use TPMs as phenotype. Filter and log normalise
+        pheno <- pheno[ features_clean, ]
+        meta <- meta[ row.names(pheno), ]
+        # log normalise matrix
+        pheno <- log2(pheno + 1) 
 
     }else{
-    message(" * using count matrix" )
-    # use counts as phenotype. Filter on TPM expression
-    pheno <- counts_df[ features_clean,] 
-    stopifnot(nrow(pheno) >= 0) 
-    print(head(pheno) )
-    save.image("debug.RData")
-    # then perform TMM normalisation
-    # round counts if estimated
-    pheno <- floor(pheno)
-    norm <- edgeR::calcNormFactors(pheno, method = "TMM") #normalized counts with TMM
-    dge <- edgeR::DGEList(counts=pheno, norm.factors = norm)  
-    v <- limma::voom(dge)
-    pheno <- as.data.frame(v$E)
+        message(" * using count matrix for phenotypes" )
+        # use counts as phenotype. Filter on TPM expression
+        pheno <- counts_df[ features_clean,] 
+        stopifnot(nrow(pheno) >= 0) 
+        print(head(pheno) )
+        save.image("debug.RData")
+        # then perform TMM normalisation
+        # round counts if estimated
+        pheno <- floor(pheno)
+        norm <- edgeR::calcNormFactors(pheno, method = "TMM") #normalized counts with TMM
+        dge <- edgeR::DGEList(counts=pheno, norm.factors = norm)  
+        v <- limma::voom(dge)
+        pheno <- as.data.frame(v$E)
     }
+
 message(" * ", nrow(pheno), " features pass missingness thresholds" )
 
 }
 
-# grouped features - eg transcripts
+# grouped features - eg transcript usage
 # apply low expression filter
 # remove any singleton features  
 # impute missing values 
@@ -146,9 +149,9 @@ if( group == TRUE){
     message( " * missing data rate: ", miss_rate )
     # set divide by 0 errors to 0 - bad approach
     # NA values occurs when all transcripts are 0 in a sample - in this case impute with the mean
-    # only impute rows with < 10% missing data
-    missing_data <- rowSums(is.na(pheno) ) <= 0.1 * ncol(pheno)
-    message(" * removing ", sum(!missing_data), " rows with > 10% missingness")
+    # only impute rows with < 25% missing data
+    missing_data <- rowSums(is.na(pheno) ) <= 0.25 * ncol(pheno)
+    message(" * removing ", sum(!missing_data), " rows with > 25% missingness")
     pheno <- pheno[ missing_data,]
     # then impute missing entries with row mean
     na_entries <- which(is.na(pheno), arr.ind=TRUE)
