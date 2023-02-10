@@ -68,7 +68,8 @@ process_pheno <- function(mat){
     names(mat) <- c("feature", sk$participant_id )
     mat <- column_to_rownames(mat, var = "feature" )
     # subset out features found in metadata and reorder
-    mat <- mat[ meta$feature, ]
+    meta_loc <- filter(meta,feature %in% row.names(mat) ) 
+    mat <- mat[ meta_loc$feature, ]
     return(mat)
 }
 
@@ -102,7 +103,12 @@ if( is.na(counts) ){
     message(" * using count matrix" )
     # use counts as phenotype. Filter on TPM expression
     pheno <- counts_df[ features_clean,] 
+    stopifnot(nrow(pheno) >= 0) 
+    print(head(pheno) )
+    save.image("debug.RData")
     # then perform TMM normalisation
+    # round counts if estimated
+    pheno <- floor(pheno)
     norm <- edgeR::calcNormFactors(pheno, method = "TMM") #normalized counts with TMM
     dge <- edgeR::DGEList(counts=pheno, norm.factors = norm)  
     v <- limma::voom(dge)

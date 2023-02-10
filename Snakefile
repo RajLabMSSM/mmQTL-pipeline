@@ -57,12 +57,18 @@ dataCode = config['dataCode']
 
 # set defaults for filtering phenotypes
 # default should be TPM >1 in >= 50% of samples
+# genes should be >1 TPM, transcripts and SUPPA should be >0.1
 # do not filter leafcutter
 if "phenoThreshold" not in config.keys():
     config['phenoThreshold'] = 1
 if "phenoFraction" not in config.keys():
     config['phenoFraction'] = 0.5
 
+# minimum number of datasets a feature can appear in to be included in meta-analysis
+if "minDatasets" not in config.keys():
+    config["minDatasets"] = 2
+
+min_datasets = config["minDatasets"]
 pheno_threshold = config['phenoThreshold']
 pheno_fraction = config['phenoFraction']
 
@@ -170,7 +176,7 @@ rule VCFtoPLINK:
         shell("ml tabix; \
             tabix -l {vcf} > {output.chr_list}"
         )
-        shell("ml plink2; \
+        shell("ml plink2/2.3; \
         plink2 --make-bed \
         --output-chr chrM \
         --max-alleles 2 \
@@ -195,7 +201,7 @@ rule splitPlinkChr:
         expand( geno_prefix + "_genotypes_{CHROM}.fam", CHROM = chromosomes, allow_missing = True)
     run:
         for chrom in chromosomes:
-            shell("ml plink2; \
+            shell("ml plink2/2.3; \
             plink2 --bfile {params.stem} --make-bed --chr {chrom} --out {params.stem}_{chrom}" )
 
 
@@ -348,7 +354,7 @@ rule harmonise_phenotypes:
         prefix = mmQTL_folder
     shell: 
         "ml {R_VERSION};"
-        "Rscript {params.script} --prefix {params.prefix} --metadata {input.pheno_meta} --mode {mode_string} {input.pheno} "
+        "Rscript {params.script} --prefix {params.prefix} --metadata {input.pheno_meta} --mode {mode_string} {input.pheno} --min_datasets {min_datasets}"
 
 ## prepare inputs for mmQTL
 rule prep_mmQTL:

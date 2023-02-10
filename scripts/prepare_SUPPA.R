@@ -74,9 +74,9 @@ miss_rate <- sum( is.na(pheno) ) / (nrow(pheno) * ncol(pheno) )
 message( " * missing data rate: ", miss_rate )
 
 # NA values occurs when all transcripts are 0 in a sample - in this case impute with the mean
-# only impute rows with < 10% missing data
-missing_data <- rowSums(is.na(pheno) ) <= 0.1 * ncol(pheno)
-message(" * removing ", sum(!missing_data), " rows with > 10% missingness")
+# only impute rows with < 25% missing data
+missing_data <- rowSums(is.na(pheno) ) <= 0.25 * ncol(pheno)
+message(" * removing ", sum(!missing_data), " rows with > 25% missingness")
 pheno <- pheno[ missing_data,]
 # then impute missing entries with row mean
 na_entries <- which(is.na(pheno), arr.ind=TRUE)

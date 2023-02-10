@@ -9,28 +9,32 @@
 #BSUB -eo %J.stderr
 #BSUB -L /bin/bash
 
-GTF="/sc/arion/projects/als-omics/microglia_isoseq/Erica/references/combined_063022.gtf"
-CODE="gencode_v38_isoseq_novel_tx"
+#GTF="/sc/arion/projects/als-omics/microglia_isoseq/Erica/references/combined_063022.gtf"
+#CODE="gencode_v38_isoseq_novel_tx"
+JUNCTIONS="leafcutter/all_junctions_v2.txt"
 
+GTF="/sc/arion/projects/ad-omics/data/references/hg38_reference/GENCODE/gencode.v38.primary_assembly/gencode.v38.primary_assembly.annotation.gtf"
+CODE="gencode_v38"
 # make SUPPA events
-
 export PS1=""; ml anaconda3; CONDA_BASE=$(conda info --base); source $CONDA_BASE/etc/profile.d/conda.sh
 module purge
 conda activate isoseq-pipeline
-suppa.py generateEvents -i $GTF -o SUPPA/${CODE}/${CODE} -e SE SS MX RI FL -f ioe
-
-exit 0
-
-
 ml R/4.0.3
+
+main () { # SKIP THIS FOR NOW
+
+mkdir -p SUPPA/${CODE}/
+suppa.py generateEvents -i $GTF -o SUPPA/${CODE}/${CODE} -e SE SS MX RI FL -f ioe
+}
+mkdir -p input
 # make gene annotation
 Rscript scripts/get_gene_meta_from_gtf.R  --gtf $GTF --mode gene --prefix input/${CODE}
 # make exon annotation
 Rscript scripts/get_gene_meta_from_gtf.R  --gtf $GTF --mode exon --prefix input/${CODE}
 # make transcript annotation
 Rscript scripts/get_gene_meta_from_gtf.R  --gtf $GTF --mode transcript  --prefix input/${CODE}
-
-# make leafcutter matrix
-
-Rscript scripts/prepare_leafcutter_matrix.R --prefix leafcutter/${CODE}  --junctions leafcutter/all_junctions.txt --exons input/${CODE}_exon_pheno_meta.tsv  
+# REMOVE LATER
+# make leafcutter matrix - slow
+mkdir -p leafcutter
+Rscript scripts/prepare_leafcutter_matrix.R --prefix leafcutter/${CODE}  --junctions $JUNCTIONS --exons input/${CODE}_exon_pheno_meta.tsv  
 

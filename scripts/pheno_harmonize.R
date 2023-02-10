@@ -11,7 +11,7 @@ option_list <- list(
    make_option(c('--prefix'), help = 'stem of out file', default = "results/example/example"),
    make_option(c('--metadata'), help = 'phenotype metadata file', default = ""),
    make_option(c('--mode'),help = 'how to harmonise - normal (genes, transcripts), SUPPA, leafcutter, txrevise', default="normal"),
-   make_option(c('--min_datasets'), help = ' the minimum number of datasets to keep a feature', default = 3 )
+   make_option(c('--min_datasets'), help = ' the minimum number of datasets to keep a feature', default = 2 )
 )
 
 option.parser <- OptionParser(option_list=option_list)

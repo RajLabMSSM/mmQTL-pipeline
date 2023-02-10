@@ -36,13 +36,14 @@ library(dplyr)
 
 message(" * collating ", chrom )
 
-meta <- read_tsv(pheno_meta, col_names = c("chr", "start", "end", "feature") )
+meta <- read_tsv(pheno_meta, col_names = FALSE)
+names(meta)[1:4] <- c("chr", "start", "end", "feature") 
 
 stopifnot(chrom %in% meta$chr )
 
 meta_loc <- meta[ meta$chr %in% chrom, ]
 
-all_files <- list.files(prefix, pattern = "test_peak_1_statistical_signal", recursive = TRUE, full.names = FALSE)
+all_files <- list.files(prefix, pattern = "test_peak_1_statistical_signal$", recursive = TRUE, full.names = FALSE)
 
 files_loc <- all_files[ dirname(all_files) %in% meta_loc$feature ] 
 

@@ -9,31 +9,31 @@ set -e
 features=(
     #GENCODE_expression 
     #GENCODE_transcript 
+    #GENCODE_leafcutter
+    #GENCODE_SUPPA_AF
+    #GENCODE_SUPPA_RI
+    GENCODE_SUPPA_AL
+    #GENCODE_SUPPA_SE
+    #GENCODE_SUPPA_A3
+    #GENCODE_SUPPA_A5
     #isoseq_expression 
     #isoseq_transcript 
-    #GENCODE_leafcutter 
     #isoseq_leafcutter
     #isoseq_SUPPA_RI 
-    #GENCODE_SUPPA_RI
     #isoseq_SUPPA_AF
-    #GENCODE_SUPPA_AF
     #isoseq_SUPPA_AL
-    #GENCODE_SUPPA_AL
     #isoseq_SUPPA_SE
-    #GENCODE_SUPPA_SE
     #isoseq_SUPPA_A3
-    #GENCODE_SUPPA_A3
     #isoseq_SUPPA_A5
-    #GENCODE_SUPPA_A5
-    union_expression
-    union_transcript
-    union_leafcutter
-    union_SUPPA_A3
-    union_SUPPA_A5
-    union_SUPPA_AL
-    union_SUPPA_AF
-    union_SUPPA_RI
-    union_SUPPA_SE
+    #union_expression
+    #union_transcript
+    #union_leafcutter
+    #union_SUPPA_A3
+    #union_SUPPA_A5
+    #union_SUPPA_AL
+    #union_SUPPA_AF
+    #union_SUPPA_RI
+    #union_SUPPA_SE
 )
 
 for i in ${features[@]};do
