@@ -45,7 +45,7 @@ n_chunk <- as.numeric(opt$chunk_total)
 prefix <- absPath(opt$prefix)
 mmqtl_bin <- opt$mmQTL
 
-cis_window <- 1e6
+cis_window <- 1e5
 
 if( !dir.exists(prefix) ){
     dir.create(prefix, recursive = TRUE)
