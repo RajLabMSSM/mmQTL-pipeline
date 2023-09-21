@@ -1,0 +1,9 @@
+dataCode: "bigbrain_edqtl"
+dataKey: "inputs/bigbrain_data_key.txt" 
+phenoMeta: "inputs/pheno_meta.tsv"
+GTF: "/sc/arion/projects/ad-omics/data/references/hg38_reference/GENCODE/gencode.v30.annotation.gtf"
+outFolder: "results/"
+phenoThreshold: 0.05
+phenoFraction: 0.5
+min_datasets: 2
+edqtl: True
