@@ -323,7 +323,6 @@ rule run_PEER:
         else:
             shell("touch {output}")
 
-
 ## Regress covariates from phenotype matrix
 rule regress_covariates:
     input:
@@ -333,10 +332,11 @@ rule regress_covariates:
         prefix + "_pheno.regressed.tsv.gz"
     params:
         script = "scripts/regress_covariates.R"
-    shell:
-        "ml {R_VERSION}; "
-        "Rscript {params.script} --pheno {input.pheno} --cov {input.cov} --out {output}"
-
+    run:
+        if int(PEER_N) == 0:
+            shell("cp {input.pheno} {output}; ")
+        if int(PEER_N) > 0:
+            shell("ml {R_VERSION} && Rscript {params.script} --pheno {input.pheno} --cov {input.cov} --out {output.regressed_pheno}")
 
 #8. Harmonize phenotype files so that each file has the same features
 #expand on dataset wildcard 
