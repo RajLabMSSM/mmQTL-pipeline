@@ -93,7 +93,7 @@ top_assoc <- list()
 #stop()
 for(feature in features_loc){
     print(feature)
-    d <- read_tsv(files_loc[ feature ])
+    d <- read_tsv(files_loc[ feature ], col_types = list(Allele = "c"))
     # ignore empty or malformed files
     if( nrow(d) == 0 ){
       next
