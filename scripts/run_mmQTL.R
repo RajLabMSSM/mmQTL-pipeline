@@ -85,7 +85,8 @@ run_mmQTL <- function(meta_loc, j){
         " --threads 4" ,
         #" --out ", prefix,## adding this kills the analysis
         " --primary_only ", ## TODO - make optional
-        " -V ", format(cis_window, scientific = FALSE, digits = 1)
+        " -V ", format(cis_window, scientific = FALSE, digits = 1),
+        " -Han " # Apply Han & Eskin method to adjust results of random-effect model
         # MMQTL24 -b  -P  pheno_file.txt   -Z  geno_file.txt   -R GRM_file.txt -a feature_annotation.bed  -A random   -gene  gene_name 
     )
     print(cmd1)
