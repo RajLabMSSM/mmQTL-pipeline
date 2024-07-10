@@ -172,7 +172,7 @@ rule VCFtoPLINK:
         stem = geno_prefix + "_genotypes",
         blacklist = "scripts/Lifted_HighLDregion_hg38_RK_12_12_19.bed"
     run:
-         vcf = metadata_dict[wildcards.DATASET]["genotypes"]
+        vcf = metadata_dict[wildcards.DATASET]["genotypes"]
         shell("ml tabix; \
             tabix -l {vcf} > {output.chr_list}"
         )
