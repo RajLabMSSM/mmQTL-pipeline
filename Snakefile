@@ -172,7 +172,7 @@ rule VCFtoPLINK:
         stem = geno_prefix + "_genotypes",
         blacklist = "scripts/Lifted_HighLDregion_hg38_RK_12_12_19.bed"
     run:
-        vcf = metadata_dict[wildcards.DATASET]["genotypes"]
+         vcf = metadata_dict[wildcards.DATASET]["genotypes"]
         shell("ml tabix; \
             tabix -l {vcf} > {output.chr_list}"
         )
@@ -180,16 +180,22 @@ rule VCFtoPLINK:
         plink2 --make-bed \
         --output-chr chrM \
         --max-alleles 2 \
+        --geno 0 \
         --keep {input.participants} \
         --exclude range {params.blacklist} \
+        --allow-extra-chr \
+        --vcf {vcf} \
+        --out {params.stem}.tmp; \
+        plink2 --make-bed \
+        --output-chr chrM \
+        --max-alleles 2 \
         --maf 0.01 \
         --freq \
-        --allow-extra-chr \
         --max-maf 0.9975 \
-        --vcf {vcf} \
+        --bfile {params.stem}.tmp \
         --out {params.stem}"
         )
-
+        shell("rm {params.stem}.tmp.fam {params.stem}.tmp.bed {params.stem}.tmp.bim {params.stem}.tmp.log")
 
 # split plink file into chromosomes
 rule splitPlinkChr:
