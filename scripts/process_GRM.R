@@ -45,8 +45,11 @@ GRM <- ReadGRMBin(prefix)
 GRM_matrix <- matrix(NA, ncol = length(GRM$id$V2), nrow = length(GRM$id$V2), dimnames = list(GRM$id$V2, GRM$id$V2))
 diag(GRM_matrix) <- GRM$diag
 
-gdata::lowerTriangle(GRM_matrix, diag=FALSE, byrow=FALSE) <- GRM$off
-gdata::upperTriangle(GRM_matrix, diag=FALSE, byrow=TRUE) <- GRM$off
+## Modified by T. Naito on Jul 10 2024
+#gdata::lowerTriangle(GRM_matrix, diag=FALSE, byrow=FALSE) <- GRM$off
+#gdata::upperTriangle(GRM_matrix, diag=FALSE, byrow=TRUE) <- GRM$off
+gdata::lowerTriangle(GRM_matrix, diag=FALSE, byrow=TRUE) <- GRM$off
+gdata::upperTriangle(GRM_matrix, diag=FALSE, byrow=FALSE) <- GRM$off
 
 # GRM_matrix[1:5,1:5]
 
