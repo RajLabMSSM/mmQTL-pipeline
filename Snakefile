@@ -157,47 +157,118 @@ rule getParticipants:
         participants = sk[["participant_id"]]
         participants.to_csv(output.txt, index = False, header = False, sep = "\t")
 
-#2. Filtered plink genotype file
+# 2. Filtered plink genotype file
 
+# 2.1 Convert VCF to plink, remove multi-allelic SNPs, blacklisted regions of genome, individuals not in sample key, variants with nan allele frequency
 rule VCFtoPLINK:
     input:
-        #vcf = VCFstem + ".vcf.gz",
+        # vcf = VCFstem + ".vcf.gz",
         participants = prefix + "_participants.txt"
-        #participants  = outFolder + "{DATASET}/{DATASET}_participants.txt"
+        # participants = outFolder + "{DATASET}/{DATASET}_participants.txt"
     output:
-        fam = geno_prefix + "_genotypes.fam", 
-        afreq = geno_prefix + "_genotypes.afreq",
+        bed = geno_prefix + "_genotypes.tmp2.bed",
+        bim = geno_prefix + "_genotypes.tmp2.bim",
+        fam = geno_prefix + "_genotypes.tmp2.fam", 
+        afreq = geno_prefix + "_genotypes.tmp2.afreq",
         chr_list = geno_prefix + "_vcf_chr_list.txt"
     params:
         stem = geno_prefix + "_genotypes",
         blacklist = "scripts/Lifted_HighLDregion_hg38_RK_12_12_19.bed"
     run:
         vcf = metadata_dict[wildcards.DATASET]["genotypes"]
-        shell("ml tabix; \
-            tabix -l {vcf} > {output.chr_list}"
-        )
-        shell("ml plink2/2.3; \
-        plink2 --make-bed \
-        --output-chr chrM \
-        --max-alleles 2 \
-        --geno 0 \
-        --keep {input.participants} \
-        --exclude range {params.blacklist} \
-        --allow-extra-chr \
-        --vcf {vcf} \
-        --out {params.stem}.tmp; \
-        plink2 --make-bed \
-        --output-chr chrM \
-        --max-alleles 2 \
-        --maf 0.01 \
-        --freq \
-        --max-maf 0.9975 \
-        --bfile {params.stem}.tmp \
-        --out {params.stem}"
-        )
-        shell("rm {params.stem}.tmp.fam {params.stem}.tmp.bed {params.stem}.tmp.bim {params.stem}.tmp.log")
+        shell("""
+            ml tabix && tabix -l {vcf} > {output.chr_list}
 
-# split plink file into chromosomes
+            ml plink2/2.3
+            plink2 --make-bed \
+                   --output-chr chrM \
+                   --max-alleles 2 \
+                   --geno 0 \
+                   --keep {input.participants} \
+                   --exclude range {params.blacklist} \
+                   --allow-extra-chr \
+                   --vcf {vcf} \
+                   --out {params.stem}.tmp
+
+            plink2 --make-bed \
+                   --output-chr chrM \
+                   --max-alleles 2 \
+                   --freq \
+                   --bfile {params.stem}.tmp \
+                   --out {params.stem}.tmp2
+        
+        rm {params.stem}.tmp.fam {params.stem}.tmp.bed {params.stem}.tmp.bim {params.stem}.tmp.log
+        """)
+
+# 2.2 Extract CHR POS positions from plink file
+rule extract_chr_pos:
+    input:
+        bim = geno_prefix + "_genotypes.tmp2.bim"
+    output:
+        chr_pos = genoFolder + "{DATASET}_genotypes_chr_pos.tsv",
+    shell:
+        """
+        awk '{{print $1, $4}}' {input.bim} > {output.chr_pos}
+        """
+
+# 2.3 Combine all CHR POS files into one file. 
+rule combine_chr_pos:
+    input:
+        chr_pos = expand(genoFolder + "{DATASET}_genotypes_chr_pos.tsv", DATASET = datasets),
+    output:
+        combined_genotype_bed = genoFolder + dataCode + "_combined_chr_pos.bed"
+    shell:
+        """
+        cat {input.chr_pos} >> {output.combined_genotype_bed}
+        """
+
+# 2.4 Count number of occurrences of each allele across DATASETS
+rule count_chr_pos:
+    input:
+        combined_genotype_bed = genoFolder + dataCode + "_combined_chr_pos.bed"
+    output: 
+        combined_genotype_bed_with_counts = genoFolder + dataCode + "_combined_chr_pos_with_counts.bed",
+        harmonized_genotype_bed = genoFolder + dataCode + "_combined_chr_pos_with_counts_without_singletons.bed"
+    shell:
+        """
+        sort {input.combined_genotype_bed} | uniq -c | sort -nr > {output.combined_genotype_bed_with_counts}
+        awk '{{if ($1 > 1) print $2 " " $3 " " $3}}' {output.combined_genotype_bed_with_counts} > {output.harmonized_genotype_bed} # separated CHR POS POS by using a space
+        """
+
+# 2.5 Filter out singletons using the harmonized genotype bed file, and remove rare variants
+rule removeSingletons:
+    input:
+        harmonized_genotype_bed = genoFolder + dataCode + "_combined_chr_pos_with_counts_without_singletons.bed",
+        bed = geno_prefix + "_genotypes.tmp2.bed",
+        bim = geno_prefix + "_genotypes.tmp2.bim",
+        fam = geno_prefix + "_genotypes.tmp2.fam", 
+        afreq = geno_prefix + "_genotypes.tmp2.afreq"
+    output:
+        bed = geno_prefix + "_genotypes.bed",
+        bim = geno_prefix + "_genotypes.bim",
+        fam = geno_prefix + "_genotypes.fam", 
+        afreq = geno_prefix + "_genotypes.afreq",
+    params:
+        stem = geno_prefix + "_genotypes"
+    shell:
+        """
+        ml plink2/2.3
+
+        plink2 --make-bed \
+               --output-chr chrM \
+               --max-alleles 2 \
+               --maf 0.01 \
+               --freq \
+               --max-maf 0.9975 \
+               --extract range {input.harmonized_genotype_bed} \
+               --allow-extra-chr \
+               --bfile {params.stem}.tmp2 \
+               --out {params.stem} 
+        
+        rm {params.stem}.tmp2.fam {params.stem}.tmp2.bed {params.stem}.tmp2.bim {params.stem}.tmp2.log {params.stem}.tmp2.afreq
+        """
+
+#3. Split plink file into chromosomes
 rule splitPlinkChr:
     input: 
         fam = geno_prefix + "_genotypes.fam"
@@ -209,7 +280,6 @@ rule splitPlinkChr:
         for chrom in chromosomes:
             shell("ml plink2/2.3; \
             plink2 --bfile {params.stem} --make-bed --chr {chrom} --out {params.stem}_{chrom}" )
-
 
 #4. GRM
 
@@ -339,10 +409,11 @@ rule regress_covariates:
     params:
         script = "scripts/regress_covariates.R"
     run:
+        PEER_N = metadata_dict[wildcards.DATASET]["PEER"]
         if int(PEER_N) == 0:
             shell("cp {input.pheno} {output}; ")
         if int(PEER_N) > 0:
-            shell("ml {R_VERSION} && Rscript {params.script} --pheno {input.pheno} --cov {input.cov} --out {output.regressed_pheno}")
+            shell("ml {R_VERSION} && Rscript {params.script} --pheno {input.pheno} --cov {input.cov} --out {output}")
 
 #8. Harmonize phenotype files so that each file has the same features
 #expand on dataset wildcard 
