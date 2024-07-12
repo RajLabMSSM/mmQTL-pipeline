@@ -205,7 +205,7 @@ rule extract_chr_pos:
     input:
         bim = geno_prefix + "_genotypes.tmp2.bim"
     output:
-        chr_pos = genoFolder + "{DATASET}_genotypes_chr_pos.tsv",
+        chr_pos = geno_prefix + "{DATASET}_genotypes_chr_pos.tsv",
     shell:
         """
         awk '{{print $1, $4}}' {input.bim} > {output.chr_pos}
@@ -214,7 +214,7 @@ rule extract_chr_pos:
 # 2.3 Combine all CHR POS files into one file. 
 rule combine_chr_pos:
     input:
-        chr_pos = expand(genoFolder + "{DATASET}_genotypes_chr_pos.tsv", DATASET = datasets),
+        chr_pos = expand(geno_prefix + "{DATASET}_genotypes_chr_pos.tsv", DATASET = datasets),
     output:
         combined_genotype_bed = genoFolder + dataCode + "_combined_chr_pos.bed"
     shell:

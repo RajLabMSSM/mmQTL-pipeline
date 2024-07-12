@@ -12,6 +12,10 @@ VCFtoPLINK:
   time: '120'
   cores: 16
   mem: 3750
+count_chr_pos:
+  time: '60'
+  cores: 4
+  mem: 8000
 generateGRM:
   time: '720'
   cores: 8
