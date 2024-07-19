@@ -159,7 +159,7 @@ rule getParticipants:
 
 # 2. Filtered plink genotype file
 
-# 2.1 Convert VCF to plink, remove multi-allelic SNPs, blacklisted regions of genome, individuals not in sample key, variants with nan allele frequency
+# 2.1 Convert VCF to plink, remove multi-allelic SNPs, blacklisted regions of genome, individuals not in sample key, variants with nan allele frequency, and maintain allele-order to prevent allele-flipping
 rule VCFtoPLINK:
     input:
         # vcf = VCFstem + ".vcf.gz",
@@ -184,6 +184,7 @@ rule VCFtoPLINK:
                    --output-chr chrM \
                    --max-alleles 2 \
                    --geno 0 \
+                   --keep-allele-order \
                    --keep {input.participants} \
                    --exclude range {params.blacklist} \
                    --allow-extra-chr \
@@ -193,6 +194,7 @@ rule VCFtoPLINK:
             plink2 --make-bed \
                    --output-chr chrM \
                    --max-alleles 2 \
+                   --keep-allele-order \
                    --freq \
                    --bfile {params.stem}.tmp \
                    --out {params.stem}.tmp2
@@ -205,7 +207,7 @@ rule extract_chr_pos:
     input:
         bim = geno_prefix + "_genotypes.tmp2.bim"
     output:
-        chr_pos = geno_prefix + "{DATASET}_genotypes_chr_pos.tsv",
+        chr_pos = genoFolder + "{DATASET}/{DATASET}_genotypes_chr_pos.tsv",
     shell:
         """
         awk '{{print $1, $4}}' {input.bim} > {output.chr_pos}
@@ -214,7 +216,7 @@ rule extract_chr_pos:
 # 2.3 Combine all CHR POS files into one file. 
 rule combine_chr_pos:
     input:
-        chr_pos = expand(geno_prefix + "{DATASET}_genotypes_chr_pos.tsv", DATASET = datasets),
+        chr_pos = expand(genoFolder + "{DATASET}/{DATASET}_genotypes_chr_pos.tsv", DATASET = datasets),
     output:
         combined_genotype_bed = genoFolder + dataCode + "_combined_chr_pos.bed"
     shell:
@@ -261,6 +263,7 @@ rule removeSingletons:
                --freq \
                --max-maf 0.9975 \
                --extract range {input.harmonized_genotype_bed} \
+               --keep-allele-order \
                --allow-extra-chr \
                --bfile {params.stem}.tmp2 \
                --out {params.stem} 
