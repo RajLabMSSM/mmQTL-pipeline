@@ -125,6 +125,19 @@ if SUPPA == True:
 if leafcutter == True and SUPPA == True:
     sys.exit(" * You can't run both SUPPA and Leafcutter simultaneously!" )
 
+## RNA EDITING SETTINGS
+if "edqtl" not in config.keys():
+    config["edqtl"] = False
+edqtl = config['edqtl']
+if edqtl == True:
+    print(" * edqtl mode")
+    pheno_matrix = prefix + ".edqtl.phenotype_matrix.tsv.gz"
+
+## SETTINGS FOR IF YOU'RE INCLUDING KNOWN COVARIATES AND PEER FACTORS
+if "known_covars" not in config.keys():
+    config["known_covars"] = False
+known_covars = config["known_covars"]
+
 mmQTL_folder = outFolder + "mmQTL/"
 mmQTL_tmp_folder = outFolder + "mmQTL/mmQTL_tmp/"
 
@@ -386,6 +399,28 @@ rule prepare_SUPPA:
         "ml {R_VERSION}; \
          Rscript {params.script} --pheno {tx_matrix} --key {sample_key} --events {input} --prefix {outFolder}{wildcards.DATASET}/{wildcards.DATASET}")
 
+rule prepare_edqtl:
+    output:
+        pheno_matrix = prefix + ".edqtl.phenotype_matrix.tsv.gz"
+    params:
+        script = "scripts/prepare_edqtl.R"
+    run:
+        pheno = metadata_dict[wildcards.DATASET]["phenotypes"]
+        sk = metadata_dict[wildcards.DATASET]["sample_key"]
+        threshold = pheno_threshold,
+        fraction = pheno_fraction,
+        meta = phenoMeta,
+        shell(
+        "ml {R_VERSION}; \
+        Rscript {params.script} \
+        --key {sk} \
+        --pheno_matrix {pheno} \
+        --pheno_meta {meta} \
+        --threshold {threshold} \
+        --fraction {fraction} \
+        --prefix {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} "
+        )
+
 #6. Covariate matrix
 # using PEER
 rule run_PEER:
@@ -402,21 +437,42 @@ rule run_PEER:
         else:
             shell("touch {output}")
 
-## Regress covariates from phenotype matrix
+# add known covariates to PEER factors
+rule merge_covariates:
+    input:
+        prefix + "_PEER_covariates.txt"
+    output:
+        prefix + "_covariates.txt"
+    params:
+        script = "scripts/merge_covariates.R"
+    run:
+        covar_file = metadata_dict[wildcards.DATASET]["covariates"]
+        if known_covars == True:
+            shell(
+            "ml {R_VERSION}; \
+            Rscript {params.script} \
+            --PEER_cov {input} \
+            --known_cov {covar_file} \
+            --prefix {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} "
+            )
+        else:
+            shell("cp {input} {output}")
+
+# regress covariates from phenotype matrix
 rule regress_covariates:
     input:
-        pheno = pheno_matrix, # prefix + "_pheno.tsv.gz",
-        cov = prefix  + "_PEER_covariates.txt"
+        pheno = pheno_matrix,
+        cov = prefix + "_covariates.txt"
     output:
         prefix + "_pheno.regressed.tsv.gz"
     params:
         script = "scripts/regress_covariates.R"
     run:
-        PEER_N = metadata_dict[wildcards.DATASET]["PEER"]
-        if int(PEER_N) == 0:
-            shell("cp {input.pheno} {output}; ")
-        if int(PEER_N) > 0:
-            shell("ml {R_VERSION} && Rscript {params.script} --pheno {input.pheno} --cov {input.cov} --out {output}")
+        known_covars = config["known_covars"]
+        if known_covars == True:
+            shell("ml {R_VERSION}; Rscript {params.script} --pheno {input.pheno} --cov {input.cov} --out {output}")
+        else:
+            shell("cp {input.pheno} {output}")
 
 #8. Harmonize phenotype files so that each file has the same features
 #expand on dataset wildcard 
