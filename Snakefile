@@ -196,7 +196,7 @@ rule VCFtoPLINK:
             plink2 --make-bed \
                    --output-chr chrM \
                    --max-alleles 2 \
-                   --geno 0 \
+                   --geno 0.1 \
                    --keep-allele-order \
                    --keep {input.participants} \
                    --exclude range {params.blacklist} \
