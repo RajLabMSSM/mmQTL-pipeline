@@ -20,6 +20,10 @@ generateGRM:
   time: '720'
   cores: 8
   mem: 3750
+harmonise_phenotypes:
+  time: '720'
+  cores: 4
+  mem: 3750
 geneNORM:
   time: '60'
   cores: 1
