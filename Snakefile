@@ -6,7 +6,7 @@ import pandas as pd
 import os 
 import itertools
 
-R_VERSION = "R/4.0.3"
+R_VERSION = "R/4.2.0"
 mmQTL_bin = "/sc/arion/projects/als-omics/microglia_isoseq/mmQTL-pipeline/MMQTL_bin/MMQTL26a"
 
 
@@ -433,7 +433,7 @@ rule run_PEER:
     run:
         PEER_N = metadata_dict[wildcards.DATASET]["PEER"]
         if int(PEER_N) > 0:
-            shell("ml R/3.6.0; Rscript {params.script} {input} {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} {PEER_N}")
+            shell("ml R/4.0.3; Rscript {params.script} {input} {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} {PEER_N}")
         else:
             shell("touch {output}")
 
@@ -448,7 +448,7 @@ rule merge_covariates:
     run:
         covar_file = metadata_dict[wildcards.DATASET]["covariates"]
         if known_covars == True:
-            shell(
+           shell(
             "ml {R_VERSION}; \
             Rscript {params.script} \
             --PEER_cov {input} \
@@ -466,13 +466,13 @@ rule regress_covariates:
     output:
         prefix + "_pheno.regressed.tsv.gz"
     params:
-        script = "scripts/regress_covariates.R"
+        script = "scripts/regress_covariates_factor_sex_age.R"
     run:
-        known_covars = config["known_covars"]
-        if known_covars == True:
+        #known_covars = config["known_covars"]
+        #if known_covars == True:
             shell("ml {R_VERSION}; Rscript {params.script} --pheno {input.pheno} --cov {input.cov} --out {output}")
-        else:
-            shell("cp {input.pheno} {output}")
+        #else:
+        #    shell("cp {input.pheno} {output}")
 
 #8. Harmonize phenotype files so that each file has the same features
 #expand on dataset wildcard 
