@@ -456,7 +456,7 @@ rule merge_covariates:
             --prefix {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} "
             )
         else:
-            shell("cp {input} {output}")
+            shell("echo No Known covariates provided - check config or datakey if covariates were to be included; cp {input} {output}")
 
 # regress covariates from phenotype matrix
 rule regress_covariates:
