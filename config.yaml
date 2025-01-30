@@ -1,0 +1,38 @@
+# Configuration for mmQTL Pipeline
+
+# General settings
+inputFolder: "inputs/"             # Folder where inputs are provided
+outFolder: "results/"              # Folder where output will be saved
+dataCode: "ExampleCode"            # Identifier for the run, used for file naming
+
+# Genotype data
+variantsToExtract: ""              # File with a list of variant IDs to extract (optional)
+
+# Dataset and metadata files
+dataKey: "inputs/data_key.tsv"     # File listing all datasets and their corresponding files [columns: dataset, sample_key, genotypes, phenotypes, PEER, covariates, counts - optional]
+phenoMeta: "inputs/phenotype_metadata.tsv"  # Metadata describing phenotype features [4 columns: chr start end feature]
+phenoMetaTrans: ""  # Metadata for features to test trans-QTL [4 columns: chr start end feature]
+
+# QTL type: 'cis' or 'trans'
+QTL_type: "cis"  # Set to 'cis' for cis-QTL mapping or 'trans' for trans-QTL mapping
+
+# Leafcutter and SUPPA settings
+leafcutter: False  # Set to true to enable leafcutter mode
+SUPPA: False       # Set to true to enable SUPPA mode
+SUPPA_events: ""   # Path to file listing SUPPA splicing events (if SUPPA mode is enabled)
+
+# RNA-editing QTL settings
+edqtl: False  # Set to true for RNA-editing QTL analysis
+
+# Filtering thresholds for phenotypes
+phenoThreshold: 1  # Threshold for expression filtering (e.g., TPM > 1)
+phenoFraction: 0.5  # Fraction of samples that must meet the threshold
+
+# Minimum datasets for meta-analysis
+minDatasets: 2  # Minimum number of datasets a feature must appear in for inclusion in meta-analysis
+
+# Known covariates
+known_covars: False  # Set to true if you want to include known covariates in the analysis - known covariates should be provided as a column in datakey
+
+# GTF file for annotation
+GTF: "inputs/gencode.v30.annotation.gtf"  # Path to GTF file used for annotation

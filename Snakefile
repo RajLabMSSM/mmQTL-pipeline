@@ -1,6 +1,6 @@
 # mmQTL pipeline 
-# Jack Humphrey & Erica Brophy
-# 2021 Raj lab
+# Jack Humphrey, Erica Brophy, Kailash BP, Winston Cuddleston, Tatsuhiko Naito
+# 2025 Raj lab
 import glob
 import pandas as pd 
 import os 
@@ -138,6 +138,10 @@ if "known_covars" not in config.keys():
     config["known_covars"] = False
 known_covars = config["known_covars"]
 
+## TRANS SETTINGS
+QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
+phenoMetaTrans = config.get('phenoMetaTrans', "") # CHR START END FEEATURE of features to test for trans
+
 mmQTL_folder = outFolder + "mmQTL/"
 mmQTL_tmp_folder = outFolder + "mmQTL/mmQTL_tmp/"
 
@@ -250,38 +254,74 @@ rule count_chr_pos:
         awk '{{if ($1 > 1) print $2 " " $3 " " $3}}' {output.combined_genotype_bed_with_counts} > {output.harmonized_genotype_bed} # separated CHR POS POS by using a space
         """
 
-# 2.5 Filter out singletons using the harmonized genotype bed file, and remove rare variants
-rule removeSingletons:
+# 2.6 Extract select set of variants
+
+rule extractVariants:
     input:
-        harmonized_genotype_bed = genoFolder + dataCode + "_combined_chr_pos_with_counts_without_singletons.bed",
-        bed = geno_prefix + "_genotypes.tmp2.bed",
-        bim = geno_prefix + "_genotypes.tmp2.bim",
-        fam = geno_prefix + "_genotypes.tmp2.fam", 
-        afreq = geno_prefix + "_genotypes.tmp2.afreq"
+        geno_bed = geno_prefix + "_genotypes.tmp2.bed",
+        geno_bim = geno_prefix + "_genotypes.tmp2.bim",
+        geno_fam = geno_prefix + "_genotypes.tmp2.fam",
+        variants_to_extract = config.get("variantsToExtract", "")
     output:
-        bed = geno_prefix + "_genotypes.bed",
-        bim = geno_prefix + "_genotypes.bim",
-        fam = geno_prefix + "_genotypes.fam", 
-        afreq = geno_prefix + "_genotypes.afreq",
+        filtered_bed = geno_prefix + "_genotypes.filtered.bed",
+        filtered_bim = geno_prefix + "_genotypes.filtered.bim",
+        filtered_fam = geno_prefix + "_genotypes.filtered.fam"
     params:
         stem = geno_prefix + "_genotypes"
     shell:
         """
         ml plink2/2.3
 
+        echo "Running PLINK variant extraction..."
+
+        if [ -s {input.variants_to_extract} ]; then
+            plink2 --bfile {params.stem}.tmp2 \
+                   --extract {input.variants_to_extract} \
+                   --make-bed \
+                   --out {params.stem}.filtered
+        else
+            echo "No variant list provided. Skipping extraction step."
+            cp {params.stem}.tmp2.bed {params.stem}.filtered.bed
+            cp {params.stem}.tmp2.bim {params.stem}.filtered.bim
+            cp {params.stem}.tmp2.fam {params.stem}.filtered.fam
+        fi
+        """
+
+# 2.6 Filter out singletons using the harmonized genotype bed file, and remove rare variants
+
+rule removeSingletons:
+    input:
+        harmonized_genotype_bed = genoFolder + dataCode + "_combined_chr_pos_with_counts_without_singletons.bed",
+        bed = geno_prefix + "_genotypes.filtered.bed",
+        bim = geno_prefix + "_genotypes.filtered.bim",
+        fam = geno_prefix + "_genotypes.filtered.fam"
+    output:
+        bed = geno_prefix + "_genotypes.bed",
+        bim = geno_prefix + "_genotypes.bim",
+        fam = geno_prefix + "_genotypes.fam",
+        afreq = geno_prefix + "_genotypes.afreq"
+    params:
+        stem = geno_prefix + "_genotypes"
+    shell:
+        """
+        ml plink2/2.3
+
+        echo "Removing singletons and rare variants..."
+
         plink2 --make-bed \
-               --output-chr chrM \
-               --max-alleles 2 \
-               --maf 0.01 \
-               --freq \
-               --max-maf 0.9975 \
-               --extract range {input.harmonized_genotype_bed} \
-               --keep-allele-order \
-               --allow-extra-chr \
-               --bfile {params.stem}.tmp2 \
-               --out {params.stem} 
-        
-        rm {params.stem}.tmp2.fam {params.stem}.tmp2.bed {params.stem}.tmp2.bim {params.stem}.tmp2.log {params.stem}.tmp2.afreq
+            --output-chr chrM \
+            --max-alleles 2 \
+            --maf 0.01 \
+            --freq \
+            --max-maf 0.9975 \
+            --extract range {input.harmonized_genotype_bed} \
+            --keep-allele-order \
+            --allow-extra-chr \
+            --bfile {params.stem}.filtered \
+            --out {params.stem}
+
+        # Clean up intermediate filtered files
+        rm {params.stem}.filtered.*
         """
 
 #3. Split plink file into chromosomes
@@ -492,12 +532,85 @@ rule harmonise_phenotypes:
         "ml {R_VERSION};"
         "Rscript {params.script} --prefix {params.prefix} --metadata {input.pheno_meta} --mode {mode_string} {input.pheno} --min_datasets {min_datasets}"
 
+# Using the harmonized phenotype metadata file as input, so that we only use harmonized features.
+rule make_trans_pheno_meta:
+    input:
+        pheno_meta = phenoMeta, # original phenotype metadata file with all features
+        pheno_meta_harmonized = mmQTL_folder + "phenotype_metadata.tsv", # harmonised phenotype metadata file with MIN_DATASET
+        pheno_meta_trans_to_test = phenoMetaTrans # phenotype metadata file of features to test
+    output:
+        trans_pheno_meta = mmQTL_folder + "phenotype_metadata_trans.tsv"
+    params:
+        script = "scripts/make_trans_pheno_meta.R",
+        out_folder = mmQTL_folder
+    run:
+        if config["QTL_type"] == "trans":  # Check if QTL_type is "trans"
+            shell(
+                  "ml {R_VERSION}; "
+                  "Rscript {params.script} --outFolder {params.out_folder} "
+                  " --pheno_meta {input.pheno_meta} "
+                  " --pheno_meta_harmonized {input.pheno_meta_harmonized} "
+                  " --pheno_meta_trans_to_test {input.pheno_meta_trans_to_test} ")
+        else:
+            print("Skipping 'make_trans_pheno_meta' because QTL_type is not 'trans'.")
+            shell("touch {output.trans_pheno_meta}")  # Create an empty placeholder file
+
+rule prepare_trans_phenotype:
+    input:
+        pheno = mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.tsv",
+        pheno_meta_trans = phenoMetaTrans
+    output:
+        trans_pheno_file = mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.trans.tsv"
+    params:
+        script = "scripts/prepare_trans_phenotype.R",
+        out_folder = mmQTL_folder
+    run:
+        if config["QTL_type"] == "trans":
+            shell(
+                "ml {R_VERSION}; "
+                "Rscript {params.script} "
+                "--pheno {input.pheno} "
+                "--pheno_meta_trans {input.pheno_meta_trans} "
+                "--outFolder {params.out_folder}"
+            )
+        else:
+            print("Skipping 'prepare_trans_phenotype' because QTL_type is not 'trans'.")
+            shell("touch {output.trans_pheno_file}")  # Create an empty file
+
+rule cleanup_pheno_files:
+    input:
+        cis_pheno_files = expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.tsv", DATASET=datasets),
+        trans_pheno_files = expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.trans.tsv", DATASET=datasets),
+        trans_pheno_meta = mmQTL_folder + "phenotype_metadata_trans.tsv"
+    output:
+        cleanup_done = mmQTL_folder + "cleanup_complete.txt"  # Dummy file to signal cleanup completion
+    run:
+        if config["QTL_type"] == "cis":
+            print("QTL_type is 'cis'. Removing trans-QTL files...")
+            trans_files = " ".join(input.trans_pheno_files)  # Combine all trans files into one command
+            shell(f"rm -f {trans_files} {input.trans_pheno_meta}")
+
+        elif config["QTL_type"] == "trans":
+            print("QTL_type is 'trans'. Removing cis-QTL files...")
+            cis_files = " ".join(input.cis_pheno_files)  # Combine all cis files into one command
+            shell(f"rm -f {cis_files}")
+
+        # Create a dummy file to mark completion
+        shell(f"echo 'Successfully cleaned up files' > {output.cleanup_done}")
+
+# Determine the correct phenotype input based on QTL_type
+if config["QTL_type"] == "trans":
+    pheno = expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.trans.tsv", DATASET=datasets)
+else:
+    pheno = expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.tsv", DATASET=datasets)
+
 ## prepare inputs for mmQTL
 rule prep_mmQTL:
         input:
-           pheno = expand(mmQTL_folder +  "{DATASET}_pheno.regressed.harmonised.tsv", DATASET = datasets),
+           pheno = pheno,
            geno = expand(geno_prefix + "_genotypes_{CHROM}.fam", DATASET = datasets, CHROM = chromosomes),
-           grm = expand(geno_prefix + "_genotypes_GRM.tsv", DATASET = datasets)
+           grm = expand(geno_prefix + "_genotypes_GRM.tsv", DATASET = datasets),
+           cleanup_done = mmQTL_folder + "cleanup_complete.txt"
            #cov = expand(prefix + "_PEER_mmQTL.txt", DATASET = datasets)
         output:
            pheno_txt = mmQTL_folder + "pheno_list.txt",
@@ -518,6 +631,12 @@ rule prep_mmQTL:
            write_list_to_file(input.grm, output.grm_txt)
            #write_list_to_file(input.cov, output.cov_txt) 
 
+# Determine the correct phenotype metadata based on QTL_type
+if config["QTL_type"] == "trans":
+    pheno_meta = mmQTL_folder + "phenotype_metadata_trans.tsv"
+else:
+    pheno_meta = mmQTL_folder + "phenotype_metadata.tsv"
+    
 #9. Run mmQTL 
 rule runMMQTL: 
     input:
@@ -525,7 +644,7 @@ rule runMMQTL:
         geno = expand(mmQTL_folder + "{CHROM}_geno_list.txt", allow_missing = True), #CHROM = chromosomes),
         grm = mmQTL_folder + "grm_list.txt",
         #cov = mmQTL_folder + "cov_list.txt",
-        pheno_meta = mmQTL_folder + "phenotype_metadata.tsv"
+        pheno_meta = pheno_meta
     params:
         script = "scripts/run_mmQTL.R",
         prefix = mmQTL_tmp_folder
@@ -545,6 +664,7 @@ rule runMMQTL:
          --mmQTL {mmQTL_bin} \
          -i {wildcards.CHUNK} \
          -n {max_chunk} " )
+
 #10. Collate mmQTL results
 
 rule mmQTLcollate: 
