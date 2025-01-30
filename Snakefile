@@ -10,7 +10,7 @@ import itertools
 R_VERSION = config.get("R_version", "R/4.2.0")
 PLINK_VERSION = config.get("PLINK_version", "plink2/2.3")
 TABIX_VERSION = config.get("TABIX_version", "tabix/0.2.6")
-mmQTL_bin = config.get(mmQTL_bin, "/sc/arion/projects/bigbrain/MMQTL26a")
+mmQTL_bin = config.get("mmQTL_bin", "/sc/arion/projects/bigbrain/MMQTL26a")
 
 # how many chunks?
 chunk_factor = 15
