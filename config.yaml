@@ -5,6 +5,12 @@ inputFolder: "inputs/"             # Folder where inputs are provided
 outFolder: "results/"              # Folder where output will be saved
 dataCode: "ExampleCode"            # Identifier for the run, used for file naming
 
+# Software setting
+R_version: "R/4.2.0"
+PLINK_version: "plink2/2.3"
+TABIX_version: "tabix/0.2.6"
+mmQTL_bin: "/sc/arion/projects/bigbrain/MMQTL26a"
+
 # Genotype data
 variantsToExtract: ""              # File with a list of variant IDs to extract (optional)
 

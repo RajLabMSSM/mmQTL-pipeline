@@ -6,8 +6,11 @@ import pandas as pd
 import os 
 import itertools
 
-R_VERSION = "R/4.2.0"
-mmQTL_bin = "/sc/arion/projects/als-omics/microglia_isoseq/mmQTL-pipeline/MMQTL_bin/MMQTL26a"
+# MODULES AND SOFTWARE 
+R_VERSION = config.get("R_version", "R/4.2.0")
+PLINK_VERSION = config.get("PLINK_version", "plink2/2.3")
+TABIX_VERSION = config.get("TABIX_version", "tabix/0.2.6")
+mmQTL_bin = config.get(mmQTL_bin, "/sc/arion/projects/bigbrain/MMQTL26a")
 
 # how many chunks?
 chunk_factor = 15
@@ -153,9 +156,9 @@ rule VCFtoPLINK:
     run:
         vcf = metadata_dict[wildcards.DATASET]["genotypes"]
         shell("""
-            ml tabix && tabix -l {vcf} > {output.chr_list}
+            ml {TABIX_VERSION} && tabix -l {vcf} > {output.chr_list}
 
-            ml plink2/2.3
+            ml {PLINK_VERSION}
             plink2 --make-bed \
                    --output-chr chrM \
                    --max-alleles 2 \
@@ -229,7 +232,7 @@ rule extractVariants:
         stem = geno_prefix + "_genotypes"
     shell:
         """
-        ml plink2/2.3
+        ml {PLINK_VERSION}
 
         echo "Running PLINK variant extraction..."
 
@@ -263,7 +266,7 @@ rule removeSingletons:
         stem = geno_prefix + "_genotypes"
     shell:
         """
-        ml plink2/2.3
+        ml {PLINK_VERSION}
 
         echo "Removing singletons and rare variants..."
 
@@ -293,7 +296,7 @@ rule splitPlinkChr:
         expand( geno_prefix + "_genotypes_{CHROM}.fam", CHROM = chromosomes, allow_missing = True)
     run:
         for chrom in chromosomes:
-            shell("ml plink2/2.3; \
+            shell("ml {PLINK_VERSION}; \
             plink2 --bfile {params.stem} --make-bed --chr {chrom} --out {params.stem}_{chrom}" )
 
 #4. GRM
@@ -366,7 +369,7 @@ rule prepare_leafcutter:
         sample_key = metadata_dict[wildcards.DATASET]["sample_key"] 
         shell(
         "ml {R_VERSION}; \
-        ml tabix; \
+        ml {TABIX_VERSION}; \
         python {params.script}  \
                  {junc_list}  \
                  {input.exon_list}  \
