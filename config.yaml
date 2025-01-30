@@ -9,6 +9,8 @@ dataCode: "ExampleCode"            # Identifier for the run, used for file namin
 R_version: "R/4.2.0"
 PLINK_version: "plink2/2.3"
 TABIX_version: "tabix/0.2.6"
+BCFTOOLS_version: "bcftools/1.9"
+GCTA_version: "gcta/1.94.1"
 mmQTL_bin: "/sc/arion/projects/bigbrain/MMQTL26a"
 
 # Genotype data

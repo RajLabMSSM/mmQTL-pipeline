@@ -10,6 +10,8 @@ import itertools
 R_VERSION = config.get("R_version", "R/4.2.0")
 PLINK_VERSION = config.get("PLINK_version", "plink2/2.3")
 TABIX_VERSION = config.get("TABIX_version", "tabix/0.2.6")
+BCFTOOLS_VERSION = config.get("BCFTOOLS_version", "bcftools/1.9")
+GCTA_VERSION = config.get("GCTA_version", "gcta/1.94.1")
 mmQTL_bin = config.get("mmQTL_bin", "/sc/arion/projects/bigbrain/MMQTL26a")
 
 # how many chunks?
@@ -247,6 +249,9 @@ rule extractVariants:
             cp {params.stem}.tmp2.bim {params.stem}.filtered.bim
             cp {params.stem}.tmp2.fam {params.stem}.filtered.fam
         fi
+        
+        # Clean up intermediate filtered files
+        rm {params.stem}.tmp2.*
         """
 
 # 2.6 Filter out singletons using the harmonized genotype bed file, and remove rare variants
@@ -310,8 +315,8 @@ rule generateGRM:
         stem = geno_prefix + "_genotypes",
         script = "scripts/process_GRM.R"
     shell:
-        "ml plink; ml {R_VERSION} ; ml gcta;"
-        "plink --bfile {params.stem} --maf 0.05 --output-chr 26 --make-bed --out {params.stem}_GCTA;"
+        "ml {PLINK_VERSION}; ml {R_VERSION} ; ml {GCTA_VERSION};"
+        "plink2 --bfile {params.stem} --maf 0.05 --make-bed --out {params.stem}_GCTA --human;"
         "gcta64 --bfile {params.stem}_GCTA  --autosome --maf 0.05 --make-grm --out {params.stem}_GRM  --thread-num 20;"
         " Rscript {params.script} --prefix {params.stem}_GRM  "
 
@@ -434,7 +439,7 @@ rule run_PEER:
     run:
         PEER_N = metadata_dict[wildcards.DATASET]["PEER"]
         if int(PEER_N) > 0:
-            shell("ml R/4.0.3; Rscript {params.script} {input} {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} {PEER_N}")
+            shell("ml {R_VERSION}; Rscript {params.script} {input} {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} {PEER_N}")
         else:
             shell("touch {output}")
 
@@ -655,7 +660,8 @@ rule fullCollate:
         prefix = mmQTL_tmp_folder
     shell:
         "set +o pipefail;"
-        "ml bcftools/1.9;"
+        "ml {BCFTOOLS_VERSION};"
+        "ml {TABIX_VERSION};"
         "echo time for sorting;"
         "for i in {chromosomes}; do echo $i;"
         "   cat {params.prefix}/${{i}}_*_all_nominal.tsv > {params.prefix}/${{i}}_full_assoc.tsv;"

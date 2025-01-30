@@ -1,7 +1,7 @@
 ## Kailash BP, 2025
 ## Make the trans phenotype matrix
 
-# The trans phenotype matrix copies each row of gene in harmonised.tsv file into 22 rows
+# The trans phenotype matrix copies each row of gene1 in harmonised.tsv file into 22 rows - gene1_chr1, gene1_chr2, ..., gene1_chr22
 # - redundant but necessary to test for QTLs for each feature in each chromosome
 
 # arguments
@@ -45,7 +45,6 @@ pheno_meta_trans <- read_tsv(pheno_meta_trans)
 chromosomes <- sapply(1:22, function(chr){return(paste0("chr", chr))})
 
 # Column 1 is feature name in pheno file
-# Column 4 is feature name in phenotype metadata file
 pheno_file <- read_tsv(pheno) %>%
   filter(.[[1]] %in% pheno_meta_trans$feature)
 
