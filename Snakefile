@@ -9,11 +9,6 @@ import itertools
 R_VERSION = "R/4.2.0"
 mmQTL_bin = "/sc/arion/projects/als-omics/microglia_isoseq/mmQTL-pipeline/MMQTL_bin/MMQTL26a"
 
-
-# set chunk number
-#N_CHUNKS = 20
-#CHUNKS = range(1, N_CHUNKS + 1)
-
 # how many chunks?
 chunk_factor = 15
 
@@ -30,6 +25,7 @@ chunks = list(chunk_df[ "chunk" ])
 chrom = list(chunk_df["chr"])
 chr_zip = []
 chunk_zip = []
+
 # the magic part -
 for i in range(len(chunks)):
     chr_zip.extend( [ chrom[i] ] * chunks[i] )
@@ -37,63 +33,46 @@ for i in range(len(chunks)):
 
 chunk_dict = chunk_df.set_index("chr").T.to_dict()    
 
-
 chromosomes = ["chr" + str(i) for i in range(1,23) ]
-# for testing
-#chromosomes = ["chr21"]
-
-#print(chromosomes)
 
 # all feature-specific and QTL mapping data go to specific outFolder
-outFolder = config['outFolder']
+outFolder = config.get('outFolder', "results/")
 
 # genotype data is always shared between analyses so put in separate shared folder
 genoFolder = os.path.join(outFolder,"genotypes/")
 
-if "phenoMeta" not in config.keys():
-    config['phenoMeta'] = "" 
-phenoMeta = config['phenoMeta']
-dataCode = config['dataCode']
+phenoMeta = config.get('phenoMeta', "")
+dataCode = config.get('dataCode', "Default")
 
 # set defaults for filtering phenotypes
 # default should be TPM >1 in >= 50% of samples
 # genes should be >1 TPM, transcripts and SUPPA should be >0.1
 # do not filter leafcutter
-if "phenoThreshold" not in config.keys():
-    config['phenoThreshold'] = 1
-if "phenoFraction" not in config.keys():
-    config['phenoFraction'] = 0.5
+pheno_threshold = config.get('phenoThreshold', 1)
+pheno_fraction = config.get('phenoFraction', 0.5)
 
 # minimum number of datasets a feature can appear in to be included in meta-analysis
-if "minDatasets" not in config.keys():
-    config["minDatasets"] = 2
-
-min_datasets = config["minDatasets"]
-pheno_threshold = config['phenoThreshold']
-pheno_fraction = config['phenoFraction']
+min_datasets = config.get('minDatasets', 2)
 
 outFolder = os.path.join(outFolder, dataCode) + "/"
 print( " output folder = " + outFolder)
+
 ####################################################
 
 SNAKEDIR = os.path.dirname(workflow.snakefile) + "/"
-
 
 #Pipeline will run for each dataset in the dataKey created by the user
 dataKey = config['dataKey']
 
 # if group = True; then divide each feature by group total
-if "group" not in config.keys():
-    config["group"] = False
-
-group_features = bool(config['group'])
+group_features = bool(config.get('group', False))
 
 meta = pd.read_csv(dataKey, sep = '\t') 
 print(meta)
 datasets = meta['dataset']
 metadata_dict = meta.set_index("dataset").T.to_dict()
-#expand on PEER
-GTF = config["GTF"]
+
+GTF = config.get("GTF", "")
 prefix = outFolder + "{DATASET}/{DATASET}"
 geno_prefix = genoFolder + "{DATASET}/{DATASET}"
 
@@ -103,19 +82,13 @@ SUPPA_events = ""
 mode_string = "normal"
 
 ## LEAFCUTTER SETTINGS
-if "leafcutter" not in config.keys():
-    config["leafcutter"] = False
-leafcutter = config['leafcutter']
+leafcutter = config.get('leafcutter', False)
 if leafcutter == True:
     print(" * Leafcutter mode!")
-    # TESTING
-    #pheno_matrix = prefix + ".leafcutter.phenotype_matrix.tsv"
     mode_string = "leafcutter"
 
 ## SUPPA SETTINGS
-if "SUPPA" not in config.keys():
-    config["SUPPA"] = False
-SUPPA = config['SUPPA']
+SUPPA = config.get('SUPPA', False)
 if SUPPA == True:
     print(" * SUPPA mode")
     SUPPA_events = config["SUPPA_events"]
@@ -126,17 +99,13 @@ if leafcutter == True and SUPPA == True:
     sys.exit(" * You can't run both SUPPA and Leafcutter simultaneously!" )
 
 ## RNA EDITING SETTINGS
-if "edqtl" not in config.keys():
-    config["edqtl"] = False
-edqtl = config['edqtl']
+edqtl = config.get('edqtl', False)
 if edqtl == True:
     print(" * edqtl mode")
     pheno_matrix = prefix + ".edqtl.phenotype_matrix.tsv.gz"
 
 ## SETTINGS FOR IF YOU'RE INCLUDING KNOWN COVARIATES AND PEER FACTORS
-if "known_covars" not in config.keys():
-    config["known_covars"] = False
-known_covars = config["known_covars"]
+known_covars = config.get("known_covars", False)
 
 ## TRANS SETTINGS
 QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
@@ -153,15 +122,7 @@ def write_list_to_file(my_list, file_name):
 
 rule all:
     input:
-        #expand(mmQTL_folder + "output/{CHROM}_chunk_{CHUNK}_output.txt", CHUNK = CHUNKS, CHROM = chromosomes )
-        #expand(mmQTL_folder + "output/{CHROM}_top_assoc.tsv", CHROM = chromosomes)
         mmQTL_folder + dataCode + "_full_assoc.tsv.gz"
-        #mmQTL_folder + dataCode + "_top_assoc.tsv.gz"
-        #expand(outFolder + "/peer{PEER_N}/" + dataCode + "combined_covariates.txt", PEER_N = PEER_values)
-        #expand(outFolder + "/peer{PEER_N}/" + dataCode + "PEER_covariates.txt", PEER_N = PEER_values)
-        #expand(prefix + "_genotypes_GRM.tsv", DATASET = datasets ) 
-        #expand(mmQTL_folder + "chunk_{CHUNK}_output.txt", CHUNK = CHUNKS )
-         #mmQTL_folder + "all_results_collated.txt"
 
 #1. Make sample key 
 
@@ -179,9 +140,7 @@ rule getParticipants:
 # 2.1 Convert VCF to plink, remove multi-allelic SNPs, blacklisted regions of genome, individuals not in sample key, variants with nan allele frequency, and maintain allele-order to prevent allele-flipping
 rule VCFtoPLINK:
     input:
-        # vcf = VCFstem + ".vcf.gz",
         participants = prefix + "_participants.txt"
-        # participants = outFolder + "{DATASET}/{DATASET}_participants.txt"
     output:
         bed = geno_prefix + "_genotypes.tmp2.bed",
         bim = geno_prefix + "_genotypes.tmp2.bim",
@@ -367,7 +326,6 @@ rule prepare_phenotypes:
         if "counts" in meta.columns:
             counts_string = "--counts " + metadata_dict[wildcards.DATASET]["counts"]
         sk = metadata_dict[wildcards.DATASET]["sample_key"]
-        #pheno_meta = metadata_dict[wildcards.DATASET]["phenotype_info"]
         threshold = pheno_threshold,
         fraction = pheno_fraction,
         group_string = ""
@@ -508,15 +466,11 @@ rule regress_covariates:
     params:
         script = "scripts/regress_covariates_factor_sex_age.R"
     run:
-        #known_covars = config["known_covars"]
-        #if known_covars == True:
-            shell("ml {R_VERSION}; Rscript {params.script} --pheno {input.pheno} --cov {input.cov} --out {output}")
-        #else:
-        #    shell("cp {input.pheno} {output}")
+        shell("ml {R_VERSION}; Rscript {params.script} --pheno {input.pheno} --cov {input.cov} --out {output}")
 
 #8. Harmonize phenotype files so that each file has the same features
-#expand on dataset wildcard 
-##this is the pheno file that will go into the path for pheno_file in the runMMQTL rule
+# expand on dataset wildcard 
+## this is the pheno file that will go into the path for pheno_file in the runMMQTL rule
 
 rule harmonise_phenotypes: 
     input:
@@ -611,12 +565,10 @@ rule prep_mmQTL:
            geno = expand(geno_prefix + "_genotypes_{CHROM}.fam", DATASET = datasets, CHROM = chromosomes),
            grm = expand(geno_prefix + "_genotypes_GRM.tsv", DATASET = datasets),
            cleanup_done = mmQTL_folder + "cleanup_complete.txt"
-           #cov = expand(prefix + "_PEER_mmQTL.txt", DATASET = datasets)
         output:
            pheno_txt = mmQTL_folder + "pheno_list.txt",
            geno_txt = expand(mmQTL_folder + "{CHROM}_geno_list.txt", CHROM = chromosomes),
            grm_txt = mmQTL_folder + "grm_list.txt"
-           #cov_txt = mmQTL_folder + "cov_list.txt"
         run:
            # for genotypes, remove file extension
            plink_files = [ os.path.splitext(i)[0] for i in input.geno ]
@@ -627,9 +579,7 @@ rule prep_mmQTL:
                write_list_to_file( geno_chrom_files, geno_chrom_out )
 
            write_list_to_file(input.pheno, output.pheno_txt)
-           #write_list_to_file(plink_files, output.geno_txt)
            write_list_to_file(input.grm, output.grm_txt)
-           #write_list_to_file(input.cov, output.cov_txt) 
 
 # Determine the correct phenotype metadata based on QTL_type
 if config["QTL_type"] == "trans":
@@ -643,7 +593,6 @@ rule runMMQTL:
         pheno = mmQTL_folder + "pheno_list.txt",
         geno = expand(mmQTL_folder + "{CHROM}_geno_list.txt", allow_missing = True), #CHROM = chromosomes),
         grm = mmQTL_folder + "grm_list.txt",
-        #cov = mmQTL_folder + "cov_list.txt",
         pheno_meta = pheno_meta
     params:
         script = "scripts/run_mmQTL.R",
@@ -696,7 +645,6 @@ rule fullCollate:
     input:
         mmQTL_folder + dataCode + "_top_assoc.tsv.gz"
     output:
-        #tsv = mmQTL_folder + dataCode + "_full_assoc.tsv",
         gz =  mmQTL_folder + dataCode + "_full_assoc.tsv.gz",
         tbi = mmQTL_folder + dataCode + "_full_assoc.tsv.gz.tbi"
     params:
