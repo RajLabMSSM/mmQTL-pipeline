@@ -46,7 +46,7 @@ if (chrom %in% meta$chr == FALSE) {
 
 meta_loc <- meta[ meta$chr %in% chrom, ]
 
-all_files <- list.files(prefix, pattern = "test_peak_1_statistical_signal\\.gz$", recursive = TRUE, full.names = FALSE)
+all_files <- list.files(prefix, pattern = "test_peak_1_statistical_signal$", recursive = TRUE, full.names = FALSE)
 
 files_loc <- all_files[ dirname(all_files) %in% meta_loc$feature ] 
 
