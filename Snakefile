@@ -116,10 +116,6 @@ if edqtl == True:
 ## SETTINGS FOR IF YOU'RE INCLUDING KNOWN COVARIATES AND PEER FACTORS
 known_covars = config.get("known_covars", False) # If True, then provide a column in dataKey with path to covariates in long format
 
-## TRANS SETTINGS
-QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
-phenoMetaTrans = config.get('phenoMetaTrans', "") # CHR START END FEEATURE of features to test for trans
-
 mmQTL_folder = outFolder + "mmQTL/"
 mmQTL_tmp_folder = outFolder + "mmQTL/mmQTL_tmp/"
 
@@ -561,10 +557,7 @@ rule cleanup_pheno_files:
 ## prepare inputs for mmQTL
 rule prep_mmQTL:
         input:
-           pheno = lambda wildcards: (
-              expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.trans.tsv", DATASET=datasets)
-              if config["QTL_type"] == "trans"
-              else expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.tsv", DATASET=datasets)),
+           pheno = lambda wildcards: expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.trans.tsv", DATASET=datasets) if config["QTL_type"] == "trans" else expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.tsv", DATASET=datasets),
            geno = expand(geno_prefix + "_genotypes_{CHROM}.fam", DATASET = datasets, CHROM = chromosomes),
            grm = expand(geno_prefix + "_genotypes_GRM.tsv", DATASET = datasets),
            cleanup_done = mmQTL_folder + "cleanup_complete.txt"
@@ -590,10 +583,7 @@ rule runMMQTL:
         pheno = mmQTL_folder + "pheno_list.txt",
         geno = expand(mmQTL_folder + "{CHROM}_geno_list.txt", allow_missing = True), #CHROM = chromosomes),
         grm = mmQTL_folder + "grm_list.txt",
-        pheno_meta = lambda wildcards: (
-          mmQTL_folder + ("phenotype_metadata_trans.tsv"
-          if config["QTL_type"] == "trans"
-          else "phenotype_metadata.tsv")
+        pheno_meta = lambda wildcards: mmQTL_folder + ("phenotype_metadata_trans.tsv" if config["QTL_type"] == "trans" else "phenotype_metadata.tsv")
     params:
         script = "scripts/run_mmQTL.R",
         prefix = mmQTL_tmp_folder

@@ -27,9 +27,8 @@ print(opt)
 prefix <- opt$prefix
 chrom <- opt$chrom
 pheno_meta <- opt$metadata
-#prefix <- "results/example/mmQTL/output/"
-#chrom <- "chr1"
-#pheno_meta <- "example/phenotype_metadata_72genes.tsv"
+top_file <- paste0(prefix, chrom, "_top_assoc.tsv" )
+
 library(readr)
 library(purrr)
 library(dplyr)
@@ -39,11 +38,15 @@ message(" * collating ", chrom )
 meta <- read_tsv(pheno_meta, col_names = FALSE)
 names(meta)[1:4] <- c("chr", "start", "end", "feature") 
 
-stopifnot(chrom %in% meta$chr )
+if (chrom %in% meta$chr == FALSE) {
+  message("WARNING: Chromosome ", chrom, " not found in metadata. Exiting.")
+  write_tsv(data.frame(), top_file)  # Write empty file and exit
+  quit(save = "no")
+}
 
 meta_loc <- meta[ meta$chr %in% chrom, ]
 
-all_files <- list.files(prefix, pattern = "test_peak_1_statistical_signal$", recursive = TRUE, full.names = FALSE)
+all_files <- list.files(prefix, pattern = "test_peak_1_statistical_signal\\.gz$", recursive = TRUE, full.names = FALSE)
 
 files_loc <- all_files[ dirname(all_files) %in% meta_loc$feature ] 
 
@@ -52,9 +55,14 @@ files_loc <- paste0( prefix, files_loc)
 
 names(files_loc) <- features_loc
 
+if (length(files_loc) == 0) {
+  message("WARNING: No files found to collate for chromosome ", chrom)
+  write_tsv(data.frame(), top_file)  # Write empty file and exit
+  quit(save = "no")
+}
+
 message( " * ", length(files_loc), " to collate" )
 
-#geno_folder <- dirname(dirname(prefix) )
 geno_folder <- opt$geno
 ## get SNP coordinates from the coordinate BIM files for each dataset
 bim_files <- list.files( geno_folder, pattern = paste0("*", chrom, ".bim" ), recursive = TRUE, full.names = TRUE )
@@ -89,15 +97,17 @@ add_P <- function(data){
 
 top_assoc <- list()
 
-#save.image("debug.RData")
-#stop()
 for(feature in features_loc){
-    print(feature)
+    
+    message(" * Processing feature: ", feature)
+    
     d <- read_tsv(files_loc[ feature ], col_types = list(Allele = "c"))
+    
     # ignore empty or malformed files
     if( nrow(d) == 0 ){
       next
     }
+    
     if( !"fixed_z" %in% names(d) ){ next}
     # standardise columns
     d <- bind_rows(dummy_cols, d)
@@ -112,13 +122,20 @@ for(feature in features_loc){
         arrange(pos) %>%
         select(feature, variant_id = Variant, chr, pos, ref, alt, everything() )
     # write out
-    out_file <- paste0(prefix, chrom, "_", feature, "_all_nominal.tsv" )
+    out_file <- paste0(prefix, chrom, "_", feature, "_all_nominal.tsv", ".gz")
     write_tsv(d, out_file, col_names = FALSE) 
     top <- arrange(d, Random_P ) %>% head(1)
     top_assoc[[feature]] <- top
 }
 
-top_res <- bind_rows(top_assoc)
+# Check if any top associations were found
+if (length(top_assoc) == 0) {
+  message("No top associations found. Writing an empty top file.")
+  write_tsv(data.frame(), top_file)
+} else {
+  # Combine top associations and write to file
+  top_res <- bind_rows(top_assoc)
+  write_tsv(top_res, top_file)
+}
 
-top_file <- paste0(prefix, chrom, "_top_assoc.tsv" )
-write_tsv(top_res, top_file)
+message(" * Collation complete for chromosome: ", chrom)
