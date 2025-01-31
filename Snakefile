@@ -70,7 +70,7 @@ print( " output folder = " + outFolder)
 
 SNAKEDIR = os.path.dirname(workflow.snakefile) + "/"
 
-#Pipeline will run for each dataset in the dataKey created by the user
+# Pipeline will run for each dataset in the dataKey created by the user
 dataKey = config['dataKey']
 
 # if group = True; then divide each feature by group total
@@ -151,11 +151,11 @@ rule VCFtoPLINK:
     input:
         participants = prefix + "_participants.txt"
     output:
-        bed = geno_prefix + "_genotypes.tmp2.bed",
-        bim = geno_prefix + "_genotypes.tmp2.bim",
-        fam = geno_prefix + "_genotypes.tmp2.fam", 
-        afreq = geno_prefix + "_genotypes.tmp2.afreq",
-        chr_list = geno_prefix + "_vcf_chr_list.txt"
+        bed = temp(geno_prefix + "_genotypes.tmp2.bed"),
+        bim = temp(geno_prefix + "_genotypes.tmp2.bim"),
+        fam = temp(geno_prefix + "_genotypes.tmp2.fam"),
+        afreq = temp(geno_prefix + "_genotypes.tmp2.afreq"),
+        chr_list = temp(geno_prefix + "_vcf_chr_list.txt")
     params:
         stem = geno_prefix + "_genotypes",
         blacklist = "scripts/Lifted_HighLDregion_hg38_RK_12_12_19.bed"
@@ -231,9 +231,9 @@ rule extractVariants:
         geno_fam = geno_prefix + "_genotypes.tmp2.fam",
         variants_to_extract = config.get("variantsToExtract", "")
     output:
-        filtered_bed = geno_prefix + "_genotypes.filtered.bed",
-        filtered_bim = geno_prefix + "_genotypes.filtered.bim",
-        filtered_fam = geno_prefix + "_genotypes.filtered.fam"
+        filtered_bed = temp(geno_prefix + "_genotypes.filtered.bed"),
+        filtered_bim = temp(geno_prefix + "_genotypes.filtered.bim"),
+        filtered_fam = temp(geno_prefix + "_genotypes.filtered.fam")
     params:
         stem = geno_prefix + "_genotypes"
     shell:
@@ -253,9 +253,6 @@ rule extractVariants:
             cp {params.stem}.tmp2.bim {params.stem}.filtered.bim
             cp {params.stem}.tmp2.fam {params.stem}.filtered.fam
         fi
-        
-        # Clean up intermediate filtered files
-        rm {params.stem}.tmp2.*
         """
 
 # 2.6 Filter out singletons using the harmonized genotype bed file, and remove rare variants
@@ -290,9 +287,6 @@ rule removeSingletons:
             --allow-extra-chr \
             --bfile {params.stem}.filtered \
             --out {params.stem}
-
-        # Clean up intermediate filtered files
-        rm {params.stem}.filtered.*
         """
 
 #3. Split plink file into chromosomes
