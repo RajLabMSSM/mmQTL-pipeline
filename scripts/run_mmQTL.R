@@ -22,7 +22,8 @@ option_list <- list(
     make_option(c('--pheno_file'), help = "path to pheno list file"),
     make_option(c('--grm_file'), help = "path to GRM list file"),
     make_option(c('--cov_file'), help = "path to covariate_file"),
-    make_option(c('--mmQTL'), help = "full path to MMQTL executable", default = "MMQTL25")
+    make_option(c('--eQTL_number'), help = "0 for primary QTL, 1 for primary + secondary QTL, 3 for ... you guessed it right :)",  default = 0),
+    make_option(c('--mmQTL'), help = "full path to MMQTL executable", default = "MMQTL26a")
 )
 
 absPath <- function(path){
@@ -69,6 +70,8 @@ setwd(prefix)
 # handle exceptions somehow
 # for j'th entry in meta_loc, make system call to MMQTL
 
+# See https://github.com/jxzb1988/MMQTL/blob/master/src_1.5.0/MeQTLPolyG.cpp for options
+
 run_mmQTL <- function(meta_loc, j){
      
     feature_j <- meta_loc[j, ]$feature
@@ -78,58 +81,62 @@ run_mmQTL <- function(meta_loc, j){
         " -P ", pheno_file,
         " -Z ", geno_file,
         " -R ", grm_file,
-        #" -C ", cov_file,
         " -a ", meta_chunk_file,
         " -A random ",
         " -gene ", feature_j,
         " --threads 4" ,
-        #" --out ", prefix,## adding this kills the analysis
-        " --primary_only ", ## TODO - make optional
+        " --eQTL_number ", eQTL_number,
         " -V ", format(cis_window, scientific = FALSE, digits = 1),
         " --Han" # Apply Han & Eskin method to adjust results of random-effect model
-        # MMQTL24 -b  -P  pheno_file.txt   -Z  geno_file.txt   -R GRM_file.txt -a feature_annotation.bed  -A random   -gene  gene_name 
     )
-    print(cmd1)
     
-    system(cmd1)
-    
-    # move outputs to correct folder
-    #cmd2 <- paste0( "mv ", feature_j, " ", prefix, "/" )
-    #print(cmd2)
-    #system(cmd2)
-    
+    tryCatch({
+      print(cmd1)  # Print the command to the screen before executing it
+      system(cmd1)
+    }, error = function(e) {
+      message("Error running MMQTL for feature: ", feature_j)
+    })
 }
 
-# read in phenotype metadata
-meta <- readr::read_tsv(meta_file, col_names = c("chr", "start", "end", "feature") )
+# Read phenotype metadata
+meta <- readr::read_tsv(meta_file, col_names = c("chr", "start", "end", "feature"))
 
-# keep only the specified chromosome
-stopifnot(chrom %in% meta$chr)
-meta_loc <- meta[ meta$chr == chrom,] 
+# Define output paths
+out_file <- paste0(prefix, "/", chrom, "_chunk_", i_chunk, "_output.txt")
+meta_chunk_file <- paste0(prefix, "/", chrom, "_chunk_", i_chunk, "_meta.tsv")
 
-head(meta_loc)
+# Check if chromosome is present in the metadata
+if (chrom %in% meta$chr == FALSE) {
+  warning_message <- "WARNING: CHROM not in meta file. Either meta file is wrong, or you are not testing all chromosomes."
+  writeLines(c(warning_message), out_file)
+  readr::write_tsv(data.frame(), meta_chunk_file, col_names = FALSE)  # Write empty metadata file
+  quit(save = "no")  # Stop execution, quit script, don't save workspace
+}
 
-meta_loc <- split_chunks(meta_loc,i_chunk , n_chunk)
+# Filter metadata for the specified chromosome
+meta_loc <- meta[meta$chr == chrom,]
 
-message( " * ", nrow(meta_loc), " features in chunk ", i_chunk, " of ", n_chunk )
+# If there are no features to process, handle it gracefully
+if (nrow(meta_loc) == 0) {
+  warning_message <- paste("WARNING: No features to process for chunk", i_chunk)
+  writeLines(c(warning_message), out_file)
+  readr::write_tsv(data.frame(), meta_chunk_file, col_names = FALSE)  # Write empty metadata file
+  quit(save = "no")  # Stop execution, quit script, don't save workspace
+}
 
-#stopifnot( nrow(meta_loc) > 0 )
-
-# write out chunked metadata and use in mmQTL script as metadata - may save time
-meta_chunk_file <- paste0(prefix, "/", chrom, "_chunk_", i_chunk, "_meta.tsv" )
+# Split metadata into chunks and write the chunk to a file
+meta_loc <- split_chunks(meta_loc, i_chunk, n_chunk)
 readr::write_tsv(meta_loc, meta_chunk_file, col_names = FALSE)
 
+# Log the number of features in the chunk
+message(" * ", nrow(meta_loc), " features in chunk ", i_chunk, " of ", n_chunk)
 
-out_file <- paste0(prefix, "/", chrom, "_chunk_", i_chunk, "_output.txt" )
-
-if( nrow(meta_loc) > 0){
-# for the chunk of features, iterate through 
-    for( j in 1:nrow(meta_loc) ){
-
-        run_mmQTL(meta_loc, j)
-
-    }
+# If there are features, process them
+if (nrow(meta_loc) > 0) {
+  for (j in 1:nrow(meta_loc)) {
+    run_mmQTL(meta_loc, j)
+  }
 }
 
-writeLines( c("success"), out_file)
-
+# Write success message to the output file
+writeLines(c("success"), out_file)

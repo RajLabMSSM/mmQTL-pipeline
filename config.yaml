@@ -19,7 +19,7 @@ variantsToExtract: ""              # File with a list of variant IDs to extract 
 # Dataset and metadata files
 dataKey: "inputs/data_key.tsv"     # File listing all datasets and their corresponding files [columns: dataset, sample_key, genotypes, phenotypes, PEER, covariates, counts - optional]
 phenoMeta: "inputs/phenotype_metadata.tsv"  # Metadata describing phenotype features [4 columns: chr start end feature]
-phenoMetaTrans: ""  # Metadata for features to test trans-QTL [4 columns: chr start end feature]
+phenoMetaTrans: "inputs/phenotype_metadata.tsv"  # Metadata for features to test trans-QTL [4 columns: chr start end feature]
 
 # QTL type: 'cis' or 'trans'
 QTL_type: "cis"  # Set to 'cis' for cis-QTL mapping or 'trans' for trans-QTL mapping
@@ -44,3 +44,6 @@ known_covars: False  # Set to true if you want to include known covariates in th
 
 # GTF file for annotation
 GTF: "inputs/gencode.v30.annotation.gtf"  # Path to GTF file used for annotation
+
+# mmQTL settings
+eQTL_number: 0 # 0 for only primary QTL, 1 for primary + secondary QTL, 3 for ... you guessed it right :)

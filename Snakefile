@@ -46,7 +46,11 @@ outFolder = config.get('outFolder', "results/")
 # genotype data is always shared between analyses so put in separate shared folder
 genoFolder = os.path.join(outFolder,"genotypes/")
 
+# QTL-mapping settings
+QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
+
 phenoMeta = config.get('phenoMeta', "")
+phenoMetaTrans = config.get('phenoMetaTrans', phenoMeta) # CHR START END FEEATURE of features to test for trans
 dataCode = config.get('dataCode', "Default")
 
 # set defaults for filtering phenotypes
@@ -110,7 +114,7 @@ if edqtl == True:
     pheno_matrix = prefix + ".edqtl.phenotype_matrix.tsv.gz"
 
 ## SETTINGS FOR IF YOU'RE INCLUDING KNOWN COVARIATES AND PEER FACTORS
-known_covars = config.get("known_covars", False)
+known_covars = config.get("known_covars", False) # If True, then provide a column in dataKey with path to covariates in long format
 
 ## TRANS SETTINGS
 QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
@@ -560,16 +564,13 @@ rule cleanup_pheno_files:
         # Create a dummy file to mark completion
         shell(f"echo 'Successfully cleaned up files' > {output.cleanup_done}")
 
-# Determine the correct phenotype input based on QTL_type
-if config["QTL_type"] == "trans":
-    pheno = expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.trans.tsv", DATASET=datasets)
-else:
-    pheno = expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.tsv", DATASET=datasets)
-
 ## prepare inputs for mmQTL
 rule prep_mmQTL:
         input:
-           pheno = pheno,
+           pheno = lambda wildcards: (
+              expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.trans.tsv", DATASET=datasets)
+              if config["QTL_type"] == "trans"
+              else expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.tsv", DATASET=datasets)),
            geno = expand(geno_prefix + "_genotypes_{CHROM}.fam", DATASET = datasets, CHROM = chromosomes),
            grm = expand(geno_prefix + "_genotypes_GRM.tsv", DATASET = datasets),
            cleanup_done = mmQTL_folder + "cleanup_complete.txt"
@@ -589,19 +590,16 @@ rule prep_mmQTL:
            write_list_to_file(input.pheno, output.pheno_txt)
            write_list_to_file(input.grm, output.grm_txt)
 
-# Determine the correct phenotype metadata based on QTL_type
-if config["QTL_type"] == "trans":
-    pheno_meta = mmQTL_folder + "phenotype_metadata_trans.tsv"
-else:
-    pheno_meta = mmQTL_folder + "phenotype_metadata.tsv"
-    
 #9. Run mmQTL 
 rule runMMQTL: 
     input:
         pheno = mmQTL_folder + "pheno_list.txt",
         geno = expand(mmQTL_folder + "{CHROM}_geno_list.txt", allow_missing = True), #CHROM = chromosomes),
         grm = mmQTL_folder + "grm_list.txt",
-        pheno_meta = pheno_meta
+        pheno_meta = lambda wildcards: (
+          mmQTL_folder + ("phenotype_metadata_trans.tsv"
+          if config["QTL_type"] == "trans"
+          else "phenotype_metadata.tsv")
     params:
         script = "scripts/run_mmQTL.R",
         prefix = mmQTL_tmp_folder
@@ -617,6 +615,7 @@ rule runMMQTL:
          --geno_file {mmQTL_folder}/{wildcards.CHROM}_geno_list.txt \
          --grm_file {input.grm} \
          --pheno_meta {input.pheno_meta} \
+         --eQTL_number {params.eQTL_number} \
          --prefix {params.prefix} \
          --mmQTL {mmQTL_bin} \
          -i {wildcards.CHUNK} \
