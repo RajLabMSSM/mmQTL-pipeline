@@ -78,7 +78,12 @@ n_datasets <- length(bim_files)
 # some features do not use all datasets in their meta-analysis
 # and thus have missing columns which messes up concatenation
 ## prepare columns according to the number of datasets
-data_cols <- paste0(rep(c("beta_", "sd_", "z_"),3), paste0("tissue_", sort(rep(0:(n_datasets-1),3) ) ) )
+
+# data_cols <- paste0(rep(c("beta_", "sd_", "z_"),3), paste0("tissue_", sort(rep(0:(n_datasets-1),3) ) ) )
+# Above command doesn't work when n_datasets = 2, so changing to following which works for n_datasets >= 1
+data_cols <- paste0(rep(c("beta_", "sd_", "z_"), n_datasets), 
+                    rep(paste0("tissue_", 0:(n_datasets - 1)), each = 3))
+
 
 all_cols <- c("Variant", "Allele", data_cols, "fixed_beta", "fixed_sd", "fixed_z", "Random_Z" )
 
