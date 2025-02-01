@@ -41,6 +41,7 @@ geno_file <- absPath(opt$geno_file)
 pheno_file <- absPath(opt$pheno_file)
 cov_file <- absPath(opt$cov_file)
 grm_file <- absPath(opt$grm_file)
+eQTL_number <- opt$eQTL_number
 i_chunk <- as.numeric(opt$chunk)
 n_chunk <- as.numeric(opt$chunk_total)
 prefix <- absPath(opt$prefix)

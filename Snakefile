@@ -48,6 +48,7 @@ genoFolder = os.path.join(outFolder,"genotypes/")
 
 # QTL-mapping settings
 QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
+eQTL_number = config.get("eQTL_number", 0) # Default to primary QTL i.e. eQTL number = 0
 
 phenoMeta = config.get('phenoMeta', "")
 phenoMetaTrans = config.get('phenoMetaTrans', phenoMeta) # CHR START END FEEATURE of features to test for trans
@@ -586,7 +587,8 @@ rule runMMQTL:
         pheno_meta = lambda wildcards: mmQTL_folder + ("phenotype_metadata_trans.tsv" if config["QTL_type"] == "trans" else "phenotype_metadata.tsv")
     params:
         script = "scripts/run_mmQTL.R",
-        prefix = mmQTL_tmp_folder
+        prefix = mmQTL_tmp_folder,
+        eQTL_number = eQTL_number
     output:
         mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt"
     run:
