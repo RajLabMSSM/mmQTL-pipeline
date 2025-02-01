@@ -48,7 +48,8 @@ genoFolder = os.path.join(outFolder,"genotypes/")
 
 # QTL-mapping settings
 QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
-eQTL_number = config.get("eQTL_number", 0) # Default to primary QTL i.e. eQTL number = 0
+eQTL_number = config.get("eQTL_number", 0) # Default to primary QTL i.e. eQTL number = 0 or 1
+variants_to_extract = config.get("variantsToExtract", "") # Default to all variants i.e. ""
 
 phenoMeta = config.get('phenoMeta', "")
 phenoMetaTrans = config.get('phenoMetaTrans', phenoMeta) # CHR START END FEEATURE of features to test for trans
@@ -152,6 +153,7 @@ rule VCFtoPLINK:
         bim = temp(geno_prefix + "_genotypes.tmp2.bim"),
         fam = temp(geno_prefix + "_genotypes.tmp2.fam"),
         afreq = temp(geno_prefix + "_genotypes.tmp2.afreq"),
+        log = temp(geno_prefix + "_genotypes.tmp2.log"),
         chr_list = temp(geno_prefix + "_vcf_chr_list.txt")
     params:
         stem = geno_prefix + "_genotypes",
@@ -226,7 +228,7 @@ rule extractVariants:
         geno_bed = geno_prefix + "_genotypes.tmp2.bed",
         geno_bim = geno_prefix + "_genotypes.tmp2.bim",
         geno_fam = geno_prefix + "_genotypes.tmp2.fam",
-        variants_to_extract = config.get("variantsToExtract", "")
+        variants_to_extract = variants_to_extract
     output:
         filtered_bed = temp(geno_prefix + "_genotypes.filtered.bed"),
         filtered_bim = temp(geno_prefix + "_genotypes.filtered.bim"),
@@ -501,7 +503,7 @@ rule make_trans_pheno_meta:
         script = "scripts/make_trans_pheno_meta.R",
         out_folder = mmQTL_folder
     run:
-        if config["QTL_type"] == "trans":  # Check if QTL_type is "trans"
+        if QTL_type == "trans":  # Check if QTL_type is "trans"
             shell(
                   "ml {R_VERSION}; "
                   "Rscript {params.script} --outFolder {params.out_folder} "
@@ -522,7 +524,7 @@ rule prepare_trans_phenotype:
         script = "scripts/prepare_trans_phenotype.R",
         out_folder = mmQTL_folder
     run:
-        if config["QTL_type"] == "trans":
+        if QTL_type == "trans":
             shell(
                 "ml {R_VERSION}; "
                 "Rscript {params.script} "
@@ -542,12 +544,12 @@ rule cleanup_pheno_files:
     output:
         cleanup_done = mmQTL_folder + "cleanup_complete.txt"  # Dummy file to signal cleanup completion
     run:
-        if config["QTL_type"] == "cis":
+        if QTL_type == "cis":
             print("QTL_type is 'cis'. Removing trans-QTL files...")
             trans_files = " ".join(input.trans_pheno_files)  # Combine all trans files into one command
             shell(f"rm -f {trans_files} {input.trans_pheno_meta}")
 
-        elif config["QTL_type"] == "trans":
+        elif QTL_type == "trans":
             print("QTL_type is 'trans'. Removing cis-QTL files...")
             cis_files = " ".join(input.cis_pheno_files)  # Combine all cis files into one command
             shell(f"rm -f {cis_files}")
@@ -558,7 +560,7 @@ rule cleanup_pheno_files:
 ## prepare inputs for mmQTL
 rule prep_mmQTL:
         input:
-           pheno = lambda wildcards: expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.trans.tsv", DATASET=datasets) if config["QTL_type"] == "trans" else expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.tsv", DATASET=datasets),
+           pheno = lambda wildcards: expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.trans.tsv", DATASET=datasets) if QTL_type == "trans" else expand(mmQTL_folder + "{DATASET}_pheno.regressed.harmonised.tsv", DATASET=datasets),
            geno = expand(geno_prefix + "_genotypes_{CHROM}.fam", DATASET = datasets, CHROM = chromosomes),
            grm = expand(geno_prefix + "_genotypes_GRM.tsv", DATASET = datasets),
            cleanup_done = mmQTL_folder + "cleanup_complete.txt"
@@ -584,7 +586,7 @@ rule runMMQTL:
         pheno = mmQTL_folder + "pheno_list.txt",
         geno = expand(mmQTL_folder + "{CHROM}_geno_list.txt", allow_missing = True), #CHROM = chromosomes),
         grm = mmQTL_folder + "grm_list.txt",
-        pheno_meta = lambda wildcards: mmQTL_folder + ("phenotype_metadata_trans.tsv" if config["QTL_type"] == "trans" else "phenotype_metadata.tsv")
+        pheno_meta = lambda wildcards: mmQTL_folder + ("phenotype_metadata_trans.tsv" if QTL_type == "trans" else "phenotype_metadata.tsv")
     params:
         script = "scripts/run_mmQTL.R",
         prefix = mmQTL_tmp_folder,
@@ -612,16 +614,22 @@ rule runMMQTL:
 rule mmQTLcollate: 
     input:
         # use zip to zip together different numbers of chunk per chromosome
-        outputs = expand(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt", zip, CHUNK = chunk_zip, CHROM = chr_zip ),
+        outputs = expand(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt", zip, CHUNK = chunk_zip, CHROM = chr_zip),
         meta = mmQTL_folder + "phenotype_metadata.tsv"
     output:
-        mmQTL_tmp_folder + "{CHROM}_top_assoc.tsv"
+        temp(mmQTL_tmp_folder + "{CHROM}_top_assoc.tsv")
     params:
         script = "scripts/collate_mmQTL.R",
         prefix = mmQTL_tmp_folder
-    shell:
-        "ml {R_VERSION};"
-        "Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} --metadata {input.meta} --geno {genoFolder}" 
+    run:
+        if QTL_type == "cis":
+            shell("""
+                ml {R_VERSION};
+                Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} --metadata {input.meta} --geno {genoFolder}
+            """)
+        elif QTL_type == "trans":
+            print("Skipping 'mmQTLcollate' because QTL_type is not 'cis'.")
+            shell("touch {output[0]}")
 
 rule topCollate:
     input:
