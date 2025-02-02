@@ -652,19 +652,29 @@ rule fullCollate:
         tsv = mmQTL_folder + dataCode + "_full_assoc.tsv",
         prefix = mmQTL_tmp_folder
     shell:
-        "set +o pipefail;"
-        "ml {BCFTOOLS_VERSION};"
-        "ml {TABIX_VERSION};"
-        "echo time for sorting;"
-        "for i in {chromosomes}; do echo $i;"
-        "   cat {params.prefix}/${{i}}_*_all_nominal.tsv > {params.prefix}/${{i}}_full_assoc.tsv;"
-        "   sort --parallel=4 -k 4,4n {params.prefix}/${{i}}_full_assoc.tsv > {params.prefix}/${{i}}_full_assoc.sorted.tsv;"
-        "done;"
-        "echo time for concatenating;"
+        """
+        set +o pipefail
+        ml {BCFTOOLS_VERSION}
+        ml {TABIX_VERSION}
+        echo time for sorting
+        chr=$(zcat {input} | tail -n +2 | cut -f3 | sort | uniq)
+        for i in $chr; do echo $i
+           zcat {params.prefix}/${{i}}_*_all_nominal.tsv.gz > {params.prefix}/${{i}}_full_assoc.tsv
+           sort --parallel=4 -k 4,4n {params.prefix}/${{i}}_full_assoc.tsv > {params.prefix}/${{i}}_full_assoc.sorted.tsv
+        done
+        echo time for concatenating
         # qval column in top needs to be removed from header to make full assoc
-        "zcat {input} | head -1 | awk 'BEGIN{{OFS=\"\t\"}}NF{{NF-=1}};1' > {params.prefix}/{dataCode}_full_assoc_header.txt;"
-        "echo  {params.prefix}/chr{{1..22}}_full_assoc.sorted.tsv ;"
-        "cat {params.prefix}/{dataCode}_full_assoc_header.txt {params.prefix}/chr{{1..22}}_full_assoc.sorted.tsv > {params.tsv};"
-        "bgzip {params.tsv};"
-        "echo time for tabixing;"
-        "tabix -S 1 -s 3 -b 4 -e 4 {output.gz} "
+        zcat {input} | head -1 | awk 'BEGIN{{OFS=\"\t\"}}NF{{NF-=1}};1' > {params.prefix}/{dataCode}_full_assoc_header.txt
+        cat {params.prefix}/{dataCode}_full_assoc_header.txt {params.prefix}/chr*_full_assoc.sorted.tsv > {params.tsv}
+        rm {params.prefix}/{dataCode}_full_assoc_header.txt
+        rm {params.prefix}/chr*_full_assoc.tsv
+        rm {params.prefix}/chr*_full_assoc.sorted.tsv
+        bgzip {params.tsv}
+        echo time for tabixing
+        tabix -S 1 -s 3 -b 4 -e 4 {output.gz}
+        rm {params.prefix}/chr*_*_all_nominal.tsv.gz
+        """
+        
+        
+
+        
