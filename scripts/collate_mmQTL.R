@@ -154,9 +154,10 @@ for (peak in seq_len(eQTL_number)) {
     write_tsv(top_res, top_file)
   }
   
-  if (length(files_loc) > 0) {
-    remove_files(files_loc)
-  }
+  # going to keep these files for now.
+  # if (length(files_loc) > 0) {
+  #   remove_files(files_loc)
+  # }
 }
 
 message(" * Collation complete for chromosome: ", chrom)

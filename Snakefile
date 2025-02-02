@@ -681,7 +681,7 @@ rule fullCollate:
         chr=$(zcat {input} | tail -n +2 | cut -f3 | sort | uniq)
         for i in $chr; do echo $i
            zcat {params.prefix}/${{i}}_*_all_nominal.tsv.gz > {params.prefix}/${{i}}_full_assoc.tsv
-           rm {params.prefix}/${{i}}_*_all_nominal.tsv.gz
+           # rm {params.prefix}/${{i}}_*_all_nominal.tsv.gz
            sort --parallel=4 -k 4,4n {params.prefix}/${{i}}_full_assoc.tsv > {params.prefix}/${{i}}_full_assoc.sorted.tsv
         done
         echo time for concatenating
@@ -694,7 +694,7 @@ rule fullCollate:
         bgzip {params.tsv}
         echo time for tabixing
         tabix -S 1 -s 3 -b 4 -e 4 {output.gz}
-        find {params.prefix} -type d -empty -delete
+        # find {params.prefix} -type d -empty -delete
         """
         
         
