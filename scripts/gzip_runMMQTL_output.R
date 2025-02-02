@@ -19,7 +19,7 @@ opt <- parse_args(option.parser)
 # Assign parsed arguments to variables
 chunk_meta <- opt$chunk_meta
 eQTL_number <- as.numeric(opt$eQTL_number)
-output_prefix <- opt$output_file
+output_file <- opt$output_file
 mmQTL_tmp_folder <- dirname(chunk_meta)
 fname <- basename(chunk_meta)
 
