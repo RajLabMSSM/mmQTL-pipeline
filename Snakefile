@@ -48,7 +48,7 @@ genoFolder = os.path.join(outFolder,"genotypes/")
 
 # QTL-mapping settings
 QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
-eQTL_number = config.get("eQTL_number", 0) # Default to primary QTL i.e. eQTL number = 0 or 1
+eQTL_number = config.get("eQTL_number", 1) # Default to primary QTL i.e. eQTL number = 1
 variants_to_extract = config.get("variantsToExtract", "") # Default to all variants i.e. ""
 
 phenoMeta = config.get('phenoMeta', "")
@@ -592,7 +592,8 @@ rule runMMQTL:
         prefix = mmQTL_tmp_folder,
         eQTL_number = eQTL_number
     output:
-        mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt"
+        mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt",
+        mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_meta.tsv"
     run:
         max_chunk = chunk_dict[wildcards.CHROM]['chunk']
         shell(
@@ -608,6 +609,18 @@ rule runMMQTL:
          --mmQTL {mmQTL_bin} \
          -i {wildcards.CHUNK} \
          -n {max_chunk} " )
+         
+rule gzip_results:
+    input:
+        chunk_success_check = mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt",
+        chunk_meta = mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_meta.tsv"
+    output:
+        temp(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output_gzip.txt")
+    params:
+        script = "scripts/gzip_runMMQTL_output.R",
+        eQTL_number = eQTL_number
+    shell:
+        "ml {R_VERSION}; Rscript {params.script} --chunk_meta {input.chunk_meta} --eQTL_number {params.eQTL_number} --output_file {output} "
 
 #10. Collate mmQTL results
 
@@ -615,6 +628,7 @@ rule mmQTLcollate:
     input:
         # use zip to zip together different numbers of chunk per chromosome
         outputs = expand(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt", zip, CHUNK = chunk_zip, CHROM = chr_zip),
+        outputs_gzip = expand(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output_gzip.txt", zip, CHUNK = chunk_zip, CHROM = chr_zip),
         meta = mmQTL_folder + "phenotype_metadata.tsv"
     output:
         temp(mmQTL_tmp_folder + "{CHROM}_top_assoc.tsv")
@@ -660,6 +674,7 @@ rule fullCollate:
         chr=$(zcat {input} | tail -n +2 | cut -f3 | sort | uniq)
         for i in $chr; do echo $i
            zcat {params.prefix}/${{i}}_*_all_nominal.tsv.gz > {params.prefix}/${{i}}_full_assoc.tsv
+           rm {params.prefix}/${{i}}_*_all_nominal.tsv.gz
            sort --parallel=4 -k 4,4n {params.prefix}/${{i}}_full_assoc.tsv > {params.prefix}/${{i}}_full_assoc.sorted.tsv
         done
         echo time for concatenating
@@ -672,7 +687,7 @@ rule fullCollate:
         bgzip {params.tsv}
         echo time for tabixing
         tabix -S 1 -s 3 -b 4 -e 4 {output.gz}
-        rm {params.prefix}/chr*_*_all_nominal.tsv.gz
+        find {params.prefix} -type d -empty -delete
         """
         
         
