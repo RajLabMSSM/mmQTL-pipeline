@@ -46,4 +46,4 @@ known_covars: False  # Set to true if you want to include known covariates in th
 GTF: "inputs/gencode.v30.annotation.gtf"  # Path to GTF file used for annotation
 
 # mmQTL settings
-eQTL_number: 1 # 1 for only primary QTL, 2 for primary + secondary QTL, 3 for ... you guessed it right :)
+eQTL_number: 1 # 1 for only primary QTL, 2 for primary + secondary QTL, 3 for ... you guessed it right :) Max 5. If more than 5, it will be changed to 5.

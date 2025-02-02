@@ -48,7 +48,12 @@ genoFolder = os.path.join(outFolder,"genotypes/")
 
 # QTL-mapping settings
 QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
-eQTL_number = config.get("eQTL_number", 1) # Default to primary QTL i.e. eQTL number = 1
+eQTL_number = config.get("eQTL_number", 1) # Number of eQTL peaks. Default to primary QTL i.e. eQTL number = 1
+
+# Enforce a maximum value of 5
+if eQTL_number > 5:
+    eQTL_number = 5
+
 variants_to_extract = config.get("variantsToExtract", "") # Default to all variants i.e. ""
 
 phenoMeta = config.get('phenoMeta', "")
@@ -592,8 +597,8 @@ rule runMMQTL:
         prefix = mmQTL_tmp_folder,
         eQTL_number = eQTL_number
     output:
-        mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt",
-        mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_meta.tsv"
+        temp(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt"),
+        temp(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_meta.tsv")
     run:
         max_chunk = chunk_dict[wildcards.CHROM]['chunk']
         shell(
@@ -647,18 +652,20 @@ rule mmQTLcollate:
 
 rule topCollate:
     input:
-        expand(mmQTL_tmp_folder + "{CHROM}_top_assoc.tsv", CHROM = chromosomes)
+        expand(mmQTL_tmp_folder + "{CHROM}_peak_*_top_assoc.tsv", CHROM = chromosomes)
     output:
-        mmQTL_folder + dataCode + "_top_assoc.tsv.gz"
+        output_peak_1 = mmQTL_folder + dataCode + "_peak_1_top_assoc.tsv.gz",
+        output_prefix = mmQTL_folder + dataCode
     params:
-        script = "scripts/collate_top_chrom.R"
+        script = "scripts/collate_top_chrom.R",
+        eQTL_number = eQTL_number
     shell:
         "ml {R_VERSION};"
-        "Rscript {params.script} --output {output} {input}"
+        "Rscript {params.script} --eQTL_number {params.eQTL_number} --output_prefix {output.output_prefix} --output_peak_1 {output.output_peak_1} {input}"
 
 rule fullCollate:
     input:
-        mmQTL_folder + dataCode + "_top_assoc.tsv.gz"
+        mmQTL_folder + dataCode + "_peak_1_top_assoc.tsv.gz"
     output:
         gz =  mmQTL_folder + dataCode + "_full_assoc.tsv.gz",
         tbi = mmQTL_folder + dataCode + "_full_assoc.tsv.gz.tbi"
