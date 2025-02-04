@@ -134,7 +134,7 @@ def write_list_to_file(my_list, file_name):
 
 rule all:
     input:
-        mmQTL_folder + dataCode + "_full_assoc.tsv.gz"
+        expand(mmQTL_folder + dataCode + "_peak_{PEAK}_full_assoc.tsv.gz", PEAK=range(1, eQTL_number + 1))
 
 #1. Make sample key 
 
@@ -597,8 +597,8 @@ rule runMMQTL:
         prefix = mmQTL_tmp_folder,
         eQTL_number = eQTL_number
     output:
-        temp(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt"),
-        temp(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_meta.tsv")
+        mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt",
+        mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_meta.tsv"
     run:
         max_chunk = chunk_dict[wildcards.CHROM]['chunk']
         shell(
@@ -620,7 +620,7 @@ rule gzip_results:
         chunk_success_check = mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt",
         chunk_meta = mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_meta.tsv"
     output:
-        temp(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output_gzip.txt")
+        mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output_gzip.txt"
     params:
         script = "scripts/gzip_runMMQTL_output.R",
         eQTL_number = eQTL_number
@@ -629,74 +629,75 @@ rule gzip_results:
 
 #10. Collate mmQTL results
 
-rule mmQTLcollate: 
+rule mmQTLcollate:
     input:
-        # use zip to zip together different numbers of chunk per chromosome
-        outputs = expand(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt", zip, CHUNK = chunk_zip, CHROM = chr_zip),
-        outputs_gzip = expand(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output_gzip.txt", zip, CHUNK = chunk_zip, CHROM = chr_zip),
-        meta = mmQTL_folder + "phenotype_metadata.tsv"
+        # Use zip to zip together different numbers of chunks per chromosome
+        outputs=expand(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt", zip, CHUNK=chunk_zip, CHROM=chr_zip),
+        outputs_gzip=expand(mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output_gzip.txt", zip, CHUNK=chunk_zip, CHROM=chr_zip),
+        meta = lambda wildcards: mmQTL_folder + ("phenotype_metadata_trans.tsv" if QTL_type == "trans" else "phenotype_metadata.tsv")
     output:
-        temp(mmQTL_tmp_folder + "{CHROM}_top_assoc.tsv")
+        mmQTL_tmp_folder + "{CHROM}_peak_{PEAK}_top_assoc.tsv.gz"  # Dynamically set PEAK as wildcard
     params:
-        script = "scripts/collate_mmQTL.R",
-        prefix = mmQTL_tmp_folder
+        script="scripts/collate_mmQTL.R",
+        prefix=mmQTL_tmp_folder,
+        geno_folder=genoFolder
     run:
-        if QTL_type == "cis":
-            shell("""
-                ml {R_VERSION};
-                Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} --metadata {input.meta} --geno {genoFolder}
-            """)
-        elif QTL_type == "trans":
-            print("Skipping 'mmQTLcollate' because QTL_type is not 'cis'.")
-            shell("touch {output[0]}")
+        shell(
+            """
+            ml {R_VERSION};
+            Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} \
+            --metadata {input.meta} --geno {params.geno_folder} --eQTL_number {wildcards.PEAK} --output_file {output}
+            """
+        )
 
 rule topCollate:
     input:
-        expand(mmQTL_tmp_folder + "{CHROM}_peak_*_top_assoc.tsv", CHROM = chromosomes)
+        lambda wildcards: expand(
+            mmQTL_tmp_folder + "{CHROM}_peak_{PEAK}_top_assoc.tsv.gz", 
+            CHROM=chr_zip, PEAK=[wildcards.PEAK]
+        )
     output:
-        output_peak_1 = mmQTL_folder + dataCode + "_peak_1_top_assoc.tsv.gz",
-        output_prefix = mmQTL_folder + dataCode
+        mmQTL_folder + dataCode + "_peak_{PEAK}_top_assoc.tsv.gz"
     params:
-        script = "scripts/collate_top_chrom.R",
-        eQTL_number = eQTL_number
+        script="scripts/collate_top_chrom.R"
     shell:
-        "ml {R_VERSION};"
-        "Rscript {params.script} --eQTL_number {params.eQTL_number} --output_prefix {output.output_prefix} --output_peak_1 {output.output_peak_1} {input}"
+        """
+        ml {R_VERSION};
+        Rscript {params.script} --output_file {output} --eQTL_number {wildcards.PEAK}
+        """
 
 rule fullCollate:
     input:
-        mmQTL_folder + dataCode + "_peak_1_top_assoc.tsv.gz"
+        expand(mmQTL_folder + dataCode + "_peak_{PEAK}_top_assoc.tsv.gz", PEAK=range(1, eQTL_number + 1))
     output:
-        gz =  mmQTL_folder + dataCode + "_full_assoc.tsv.gz",
-        tbi = mmQTL_folder + dataCode + "_full_assoc.tsv.gz.tbi"
+        gz=mmQTL_folder + dataCode + "_peak_{PEAK}_full_assoc.tsv.gz",
+        tbi=mmQTL_folder + dataCode + "_peak_{PEAK}_full_assoc.tsv.gz.tbi"
     params:
-        tsv = mmQTL_folder + dataCode + "_full_assoc.tsv",
-        prefix = mmQTL_tmp_folder
+        tsv=mmQTL_folder + dataCode + "_peak_{PEAK}_full_assoc.tsv",
+        prefix=mmQTL_tmp_folder
     shell:
         """
         set +o pipefail
         ml {BCFTOOLS_VERSION}
         ml {TABIX_VERSION}
-        echo time for sorting
-        chr=$(zcat {input} | tail -n +2 | cut -f3 | sort | uniq)
-        for i in $chr; do echo $i
-           zcat {params.prefix}/${{i}}_*_all_nominal.tsv.gz > {params.prefix}/${{i}}_full_assoc.tsv
-           # rm {params.prefix}/${{i}}_*_all_nominal.tsv.gz
-           sort --parallel=4 -k 4,4n {params.prefix}/${{i}}_full_assoc.tsv > {params.prefix}/${{i}}_full_assoc.sorted.tsv
-        done
-        echo time for concatenating
-        # qval column in top needs to be removed from header to make full assoc
-        zcat {input} | head -1 | awk 'BEGIN{{OFS=\"\t\"}}NF{{NF-=1}};1' > {params.prefix}/{dataCode}_full_assoc_header.txt
-        cat {params.prefix}/{dataCode}_full_assoc_header.txt {params.prefix}/chr*_full_assoc.sorted.tsv > {params.tsv}
-        rm {params.prefix}/{dataCode}_full_assoc_header.txt
-        rm {params.prefix}/chr*_full_assoc.tsv
-        rm {params.prefix}/chr*_full_assoc.sorted.tsv
-        bgzip {params.tsv}
-        echo time for tabixing
-        tabix -S 1 -s 3 -b 4 -e 4 {output.gz}
-        # find {params.prefix} -type d -empty -delete
-        """
-        
-        
+        echo "Sorting and collating for peak {wildcards.PEAK}"
 
-        
+        chr=$(zcat {input} | tail -n +2 | cut -f3 | sort | uniq)
+        for i in $chr; do 
+            echo "Processing chr $i for peak {wildcards.PEAK}"
+            zcat {params.prefix}/${{i}}_*_all_nominal.tsv.gz > {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.tsv
+            sort --parallel=4 -k 4,4n {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.tsv > {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.sorted.tsv
+        done
+
+        echo "Concatenating sorted files for peak {wildcards.PEAK}"
+        zcat {input} | head -1 | awk 'BEGIN{{OFS="\\t"}}NF{{NF-=1}};1' > {params.prefix}/{dataCode}_full_assoc_peak_{wildcards.PEAK}_header.txt
+        cat {params.prefix}/{dataCode}_full_assoc_peak_{wildcards.PEAK}_header.txt {params.prefix}/chr*_full_assoc_peak_{wildcards.PEAK}.sorted.tsv > {params.tsv}
+
+        rm {params.prefix}/{dataCode}_full_assoc_peak_{wildcards.PEAK}_header.txt
+        rm {params.prefix}/chr*_full_assoc_peak_{wildcards.PEAK}.tsv
+        rm {params.prefix}/chr*_full_assoc_peak_{wildcards.PEAK}.sorted.tsv
+
+        echo "Compressing and indexing full associations for peak {wildcards.PEAK}"
+        bgzip {params.tsv}
+        tabix -S 1 -s 3 -b 4 -e 4 {output.gz}
+        """
