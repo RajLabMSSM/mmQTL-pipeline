@@ -14,11 +14,10 @@ library(optparse)
 
 option_list <- list(
    make_option(c('--prefix'), help = 'stem of out file', default = "results/example/example"),
-   make_option(c('--metadata'), help = 'phenotype metadata file', default = ""),
    make_option(c('--chrom'), help = 'the chromosome', default = ""),
+   make_option(c('--metadata'), help = 'phenotype metadata file', default = ""),
    make_option(c('--geno'), help = 'path to genotype folder', default = ""),
-   make_option(c('--eQTL_number'), help = 'Number of eQTL peaks', default = 1),
-   make_option(c('--output_file'), help = 'name of output file', default = "results/example/example")
+   make_option(c('--eQTL_number'), help = 'Number of eQTL peaks', default = 1)
 )
 
 option.parser <- OptionParser(option_list=option_list)
@@ -31,7 +30,8 @@ chrom <- opt$chrom
 pheno_meta <- opt$metadata
 peak <- as.numeric(opt$eQTL_number)
 geno_folder <- opt$geno # Get genotype SNP coordinates
-top_file <- opt$output_file
+top_file <- paste0(prefix, chrom, "_peak_", peak, "_top_assoc.tsv.gz")
+print(paste0("Output file path : ", top_file))
 
 library(readr)
 library(purrr)
@@ -68,12 +68,10 @@ remove_files <- function(file_list) {for (file in file_list) {
 peak_pattern <- paste0("test_peak_", peak, "_statistical_signal\\.gz$")
 message("Processing files for peak: ", peak)
 
-# top_file <- paste0(prefix, chrom, "_peak_", peak, "_top_assoc.tsv")
-
 if (chrom %in% meta$chr == FALSE) {
   message("WARNING: Chromosome ", chrom, " not found in metadata. Exiting.")
-  write_tsv(data.frame(), top_file)  # Write empty file and exit
-  quit(save = "no")
+  file.create(top_file)  # Write empty file and exit
+  quit(save = "no") # quit R without saving workspace
 }
 
 all_files <- list.files(prefix, pattern = peak_pattern, recursive = TRUE, full.names = FALSE)
@@ -81,7 +79,7 @@ files_loc <- all_files[dirname(all_files) %in% meta_loc$feature]
 
 if (length(files_loc) == 0) {
   message("WARNING: No files found for peak ", peak, " on chromosome ", chrom)
-  write_tsv(data.frame(), top_file)  # Write empty file and exit
+  file.create(top_file)  # Write empty file and exit
   next
 }
 
@@ -141,7 +139,7 @@ for (feature in features_loc) {
 # Combine and write top associations for current peak
 if (length(top_assoc) == 0) {
   message("No top associations found for peak ", peak)
-  write_tsv(data.frame(), top_file)
+  file.create(top_file)
 } else {
   # Combine top associations and write to file
   top_res <- bind_rows(top_assoc)

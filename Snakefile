@@ -646,7 +646,7 @@ rule mmQTLcollate:
             """
             ml {R_VERSION};
             Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} \
-            --metadata {input.meta} --geno {params.geno_folder} --eQTL_number {wildcards.PEAK} --output_file {output}
+            --metadata {input.meta} --geno {params.geno_folder} --eQTL_number {wildcards.PEAK}
             """
         )
 
@@ -659,11 +659,12 @@ rule topCollate:
     output:
         mmQTL_folder + dataCode + "_peak_{PEAK}_top_assoc.tsv.gz"
     params:
-        script="scripts/collate_top_chrom.R"
+        script="scripts/collate_top_chrom.R",
+        prefix=mmQTL_tmp_folder
     shell:
         """
         ml {R_VERSION};
-        Rscript {params.script} --output_file {output} --eQTL_number {wildcards.PEAK}
+        Rscript {params.script} --output_file {output} --prefix {params.prefix} --eQTL_number {wildcards.PEAK}
         """
 
 rule fullCollate:
@@ -682,18 +683,23 @@ rule fullCollate:
         ml {TABIX_VERSION}
         echo "Sorting and collating for peak {wildcards.PEAK}"
 
-        chr=$(zcat {input} | tail -n +2 | cut -f3 | sort | uniq)
+        # Dynamically build the top file path for the current peak
+        top_file="{mmQTL_folder}{dataCode}_peak_{wildcards.PEAK}_top_assoc.tsv.gz"
+        
+        chr=$(zcat $top_file | tail -n +2 | cut -f3 | sort | uniq)
+        
         for i in $chr; do 
             echo "Processing chr $i for peak {wildcards.PEAK}"
-            zcat {params.prefix}/${{i}}_*_all_nominal.tsv.gz > {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.tsv
-            sort --parallel=4 -k 4,4n {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.tsv > {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.sorted.tsv
+            zcat {params.prefix}/${{i}}_*_peak_{wildcards.PEAK}_all_nominal.tsv.gz > {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.tsv
+            sort --parallel=4 -k4,4n {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.tsv > {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.sorted.tsv
         done
 
         echo "Concatenating sorted files for peak {wildcards.PEAK}"
-        zcat {input} | head -1 | awk 'BEGIN{{OFS="\\t"}}NF{{NF-=1}};1' > {params.prefix}/{dataCode}_full_assoc_peak_{wildcards.PEAK}_header.txt
-        cat {params.prefix}/{dataCode}_full_assoc_peak_{wildcards.PEAK}_header.txt {params.prefix}/chr*_full_assoc_peak_{wildcards.PEAK}.sorted.tsv > {params.tsv}
+        # Extract header and combine with sorted content
+        zcat {input} | head -1 | awk 'BEGIN{{OFS="\\t"}}NF{{NF-=1}};1' > {params.tsv}
+        cat {params.prefix}/chr*_full_assoc_peak_{wildcards.PEAK}.sorted.tsv >> {params.tsv}
 
-        rm {params.prefix}/{dataCode}_full_assoc_peak_{wildcards.PEAK}_header.txt
+        # Clean up intermediate files
         rm {params.prefix}/chr*_full_assoc_peak_{wildcards.PEAK}.tsv
         rm {params.prefix}/chr*_full_assoc_peak_{wildcards.PEAK}.sorted.tsv
 
@@ -701,3 +707,4 @@ rule fullCollate:
         bgzip {params.tsv}
         tabix -S 1 -s 3 -b 4 -e 4 {output.gz}
         """
+        
