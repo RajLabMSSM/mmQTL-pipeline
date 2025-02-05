@@ -14,7 +14,7 @@ GCTA_version: "gcta/1.94.1"
 mmQTL_bin: "/sc/arion/projects/bigbrain/MMQTL26a"
 
 # Genotype data
-variantsToExtract: ""              # File with a list of variant IDs to extract (optional)
+variantsToExtract: "/dev/null"              # File with a list of variant IDs to extract (optional) - default supplies empty file
 
 # Dataset and metadata files
 dataKey: "inputs/data_key.tsv"     # File listing all datasets and their corresponding files [columns: dataset, sample_key, genotypes, phenotypes, PEER, covariates, counts - optional]

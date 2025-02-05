@@ -54,7 +54,7 @@ eQTL_number = config.get("eQTL_number", 1) # Number of eQTL peaks. Default to pr
 if eQTL_number > 5:
     eQTL_number = 5
 
-variants_to_extract = config.get("variantsToExtract", "") # Default to all variants i.e. ""
+variants_to_extract = config.get("variantsToExtract", "/dev/null") # Default to all variants by supplying empty file
 
 phenoMeta = config.get('phenoMeta', "")
 phenoMetaTrans = config.get('phenoMetaTrans', phenoMeta) # CHR START END FEEATURE of features to test for trans
