@@ -441,7 +441,7 @@ rule run_PEER:
     run:
         PEER_N = metadata_dict[wildcards.DATASET]["PEER"]
         if int(PEER_N) > 0:
-            shell("ml {R_VERSION}; Rscript {params.script} {input} {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} {PEER_N}")
+            shell("ml R/4.0.3; Rscript {params.script} {input} {outFolder}/{wildcards.DATASET}/{wildcards.DATASET} {PEER_N}")
         else:
             shell("touch {output}")
 
