@@ -7,47 +7,66 @@ __default__:
   output: logs/{rule}:{wildcards}.stdout
   error: logs/{rule}:{wildcards}.stderr
   himem: ''
+
 VCFtoPLINK:
-  time: '120'
+  time: '2:00'
   cores: 2
   mem: 8000
+
 count_chr_pos:
-  time: '60'
+  time: '1:00'
   cores: 2
   mem: 8000
+
 generateGRM:
-  time: '720'
-  cores: 4
+  time: '4:00'
+  cores: 2
   mem: 8000
+
 harmonise_phenotypes:
-  time: '720'
+  time: '12:00'
   cores: 4
   mem: 400
-geneNORM:
-  time: '60'
-  cores: 1
-  mem: 3000
+
 run_PEER:
-  time: '30'
+  time: '1:00'
   cores: 8
   mem: 3000
+
 runMMQTL:
-  time: '720'
+  time: '36:00'
   cores: 1
   mem: 3000
+  queue: premium
+
 prepare_leafcutter:
-  time: '720'
+  time: '4:00'
   cores: 4
   mem: 3000
+
 prepare_SUPPA:
-  time: '720'
+  time: '4:00'
   cores: 4
   mem: 3000
-fullCollate:
-  time: '720'
+
+prepare_edqtl:
+  time: '4:00'
+  cores: 4
+  mem: 3000
+
+mmQTLcollate:
+  time: '24:00'
   cores: 8
   mem: 3000
+  queue: premium
+
 topCollate:
-  time: '720'
+  time: '12:00'
   cores: 8
   mem: 3000
+
+fullCollate:
+  time: '24:00'
+  cores: 8
+  mem: 3000
+  queue: premium
