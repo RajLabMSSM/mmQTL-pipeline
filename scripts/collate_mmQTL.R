@@ -92,7 +92,7 @@ message(" * ", length(files_loc), " files found for peak ", peak)
 ## get SNP coordinates from the coordinate BIM files for each dataset
 bim_files <- list.files(geno_folder, pattern = paste0("*", chrom, ".bim"), recursive = TRUE, full.names = TRUE)
 ## read in and get distinct rows
-bim_res <- map_df(bim_files, read_tsv, col_names = c("chr", "Variant", "n", "pos", "ref", "alt")) %>% distinct()
+bim_res <- map_df(bim_files, read_tsv, col_names = c("chr", "Variant", "n", "pos", "alt", "ref")) %>% distinct()
 bim_res$chr <- paste0("chr", bim_res$chr)
 bim_res$n <- NULL
 
