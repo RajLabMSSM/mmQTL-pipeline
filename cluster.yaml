@@ -23,10 +23,15 @@ generateGRM:
   cores: 2
   mem: 8000
 
+prepare_phenotypes:
+  time: '2:00'
+  cores: 2
+  mem: 8000
+
 harmonise_phenotypes:
   time: '12:00'
   cores: 4
-  mem: 400
+  mem: 6000
 
 run_PEER:
   time: '1:00'
