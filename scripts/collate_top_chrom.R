@@ -1,4 +1,4 @@
-## Kailash BP, Jack Humphrey 2025
+## Jack Humphrey, Kailash BP 2025
 ## Collate top associations per peak
 
 library(optparse)
@@ -31,16 +31,14 @@ if (length(inputs) == 0) {
 # Read and combine input files
 res <- map_df(inputs, read_tsv)
 
-# Check for sufficient rows before computing q-values
 if (nrow(res) > 1) {
-  message(" * Calculating q-values...")
-  res$qval <- qvalue::qvalue(res$Random_FDR)$qval
+  res$Random_Bonf_FDR <- p.adjust(res$Random_bonf, method = "fdr")
 } else {
-  res$qval <- NA
+  res$Random_bonf_fdr <- NA
 }
 
-# Sort by q-value and write output
-res <- arrange(res, qval)
+# Sort by Random_Bonf_FDR and write output
+res <- arrange(res, Random_Bonf_FDR)
 write_tsv(res, output_file)
 
 message(" * Top associations for peak ", peak, " written to: ", output_file)

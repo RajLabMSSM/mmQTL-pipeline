@@ -654,7 +654,7 @@ rule topCollate:
     input:
         lambda wildcards: expand(
             mmQTL_tmp_folder + "{CHROM}_peak_{PEAK}_top_assoc.tsv.gz", 
-            CHROM=chr_zip, PEAK=[wildcards.PEAK]
+            CHROM=chromosomes, PEAK=[wildcards.PEAK]
         )
     output:
         mmQTL_folder + dataCode + "_peak_{PEAK}_top_assoc.tsv.gz"
