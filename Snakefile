@@ -686,7 +686,7 @@ rule fullCollate:
         # Dynamically build the top file path for the current peak
         top_file="{mmQTL_folder}{dataCode}_peak_{wildcards.PEAK}_top_assoc.tsv.gz"
         
-        chr=$(zcat $top_file | tail -n +2 | cut -f3 | sort | uniq)
+        chr=$(zcat $top_file | tail -n +2 | cut -f3 | sort -uV)
         
         for i in $chr; do 
             echo "Processing chr $i for peak {wildcards.PEAK}"
