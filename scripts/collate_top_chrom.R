@@ -34,7 +34,7 @@ res <- map_df(inputs, read_tsv)
 if (nrow(res) > 1) {
   res$Random_Bonf_FDR <- p.adjust(res$Random_bonf, method = "fdr")
 } else {
-  res$Random_bonf_fdr <- NA
+  res$Random_Bonf_FDR <- NA
 }
 
 # Sort by Random_Bonf_FDR and write output

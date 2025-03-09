@@ -40,9 +40,9 @@ run_PEER:
 
 runMMQTL:
   time: '36:00'
-  cores: 1
-  mem: 3000
+  mem: 1000
   queue: premium
+  cores: 4
 
 prepare_leafcutter:
   time: '4:00'

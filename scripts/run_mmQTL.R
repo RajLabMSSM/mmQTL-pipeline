@@ -2,8 +2,8 @@
 options(echo=TRUE)
 ## RUN MMQTL
 
-# Jack Humphrey
-# 2021
+# Kailash BP & Jack Humphrey
+# 2025
 # wraps around the MMQTL binary 
 # for massive parallelisation
 
@@ -11,9 +11,12 @@ options(echo=TRUE)
 # all the paths to the input file lists needed
 # path to phenotype metadata
 # chunk number (n) and chunk number (i of n)
+
+library(parallel)
 library(optparse)
 option_list <- list(
     make_option(c('--chrom'), help = "which chromosome to run on", default = ""),
+    make_option(c('--threads'), help = "number of threads for parallelization", default = 4),
     make_option(c('--pheno_meta'), help = 'phenotype metadata', default = ""),
     make_option(c('--chunk_total', '-n'), help = 'total number of chunks', default = 10),
     make_option(c('--chunk', '-i'), help = 'current chunk number', default = 1),
@@ -34,6 +37,11 @@ absPath <- function(path){
 }
 option.parser <- OptionParser(option_list=option_list)
 opt <- parse_args(option.parser)
+
+num_cores <- as.numeric(opt$threads)  # Capture the number of threads
+
+# Print the number of cores being used
+message("Using ", num_cores, " cores for parallel processing")
 
 chrom <- opt$chrom
 meta_file <- absPath(opt$pheno_meta)
@@ -85,7 +93,6 @@ run_mmQTL <- function(meta_loc, j){
         " -a ", meta_chunk_file,
         " -A random ",
         " -gene ", feature_j,
-        " --threads 4" ,
         " --eQTL_number ", eQTL_number,
         " -V ", format(cis_window, scientific = FALSE, digits = 1),
         " --Han" # Apply Han & Eskin method to adjust results of random-effect model
@@ -134,9 +141,9 @@ message(" * ", nrow(meta_loc), " features in chunk ", i_chunk, " of ", n_chunk)
 
 # If there are features, process them
 if (nrow(meta_loc) > 0) {
-  for (j in 1:nrow(meta_loc)) {
-    run_mmQTL(meta_loc, j)
-  }
+  # Run MMQTL in parallel using `mclapply`
+  mclapply(1:nrow(meta_loc), function(j) {
+    run_mmQTL(meta_loc, j)}, mc.cores = num_cores)  # Use the allocated number of cores
 }
 
 # Write success message to the output file

@@ -1,7 +1,7 @@
 # convert GRM 
 
-# Roman Kosoy and Jack Humphrey
-# 2021
+# Roman Kosoy, Jack Humphrey & Tatsuhiko Naito
+# 2024
 
 library(optparse)
 

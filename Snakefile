@@ -49,6 +49,7 @@ genoFolder = os.path.join(outFolder,"genotypes/")
 # QTL-mapping settings
 QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
 eQTL_number = config.get("eQTL_number", 1) # Number of eQTL peaks. Default to primary QTL i.e. eQTL number = 1
+threads = config.get("threads", 4) # Number of threads - used to parallelize runMMQTL rule
 
 # Enforce a maximum value of 5
 if eQTL_number > 5:
@@ -595,7 +596,8 @@ rule runMMQTL:
     params:
         script = "scripts/run_mmQTL.R",
         prefix = mmQTL_tmp_folder,
-        eQTL_number = eQTL_number
+        eQTL_number = eQTL_number,
+        threads = threads
     output:
         mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt",
         mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_meta.tsv"
@@ -611,6 +613,7 @@ rule runMMQTL:
          --pheno_meta {input.pheno_meta} \
          --eQTL_number {params.eQTL_number} \
          --prefix {params.prefix} \
+         --threads {params.threads} \
          --mmQTL {mmQTL_bin} \
          -i {wildcards.CHUNK} \
          -n {max_chunk} " )
@@ -707,4 +710,3 @@ rule fullCollate:
         bgzip {params.tsv}
         tabix -S 1 -s 3 -b 4 -e 4 {output.gz}
         """
-        
