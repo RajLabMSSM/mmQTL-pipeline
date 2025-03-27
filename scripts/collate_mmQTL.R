@@ -17,7 +17,8 @@ option_list <- list(
    make_option(c('--chrom'), help = 'the chromosome', default = ""),
    make_option(c('--metadata'), help = 'phenotype metadata file', default = ""),
    make_option(c('--geno'), help = 'path to genotype folder', default = ""),
-   make_option(c('--eQTL_number'), help = 'Number of eQTL peaks', default = 1)
+   make_option(c('--eQTL_number'), help = 'Number of eQTL peaks', default = 1),
+   make_option(c('--QTL_type'), help = 'cis or trans', default = "cis")
 )
 
 option.parser <- OptionParser(option_list=option_list)
@@ -29,6 +30,7 @@ prefix <- opt$prefix
 chrom <- opt$chrom
 pheno_meta <- opt$metadata
 peak <- as.numeric(opt$eQTL_number)
+QTL_type <- opt$QTL_type
 geno_folder <- opt$geno # Get genotype SNP coordinates
 top_file <- paste0(prefix, chrom, "_peak_", peak, "_top_assoc.tsv.gz")
 print(paste0("Output file path : ", top_file))
@@ -129,8 +131,13 @@ for (feature in features_loc) {
   
   # Write per-feature nominal associations
   out_file <- paste0(prefix, chrom, "_", feature, "_peak_", peak, "_all_nominal.tsv.gz")
-  write_tsv(d, out_file, col_names = FALSE)
   
+  if (QTL_type == "cis") {
+    write_tsv(d, out_file, col_names = FALSE)
+  } else if (QTL_type == "trans") {
+    write_tsv(d %>% select(feature, variant_id, chr, pos, ref, alt, Random_P, Random_Z), out_file, col_names = FALSE)
+  }
+ 
   # Store top association
   top <- arrange(d, Random_P) %>% head(1)
   top_assoc[[feature]] <- top
@@ -143,8 +150,13 @@ if (length(top_assoc) == 0) {
 } else {
   # Combine top associations and write to file
   top_res <- bind_rows(top_assoc)
-  write_tsv(top_res, top_file)
+  if (QTL_type == "cis") {
+    write_tsv(top_res, top_file)
+  } else if (QTL_type == "trans") {
+    write_tsv(top_res %>% select(feature, variant_id, chr, pos, ref, alt, Random_P, Random_Z), top_file)
+  }
 }
+
 # going to keep these files for now.
 # if (length(files_loc) > 0) {
 #   remove_files(files_loc)

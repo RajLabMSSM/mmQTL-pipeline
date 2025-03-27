@@ -643,13 +643,15 @@ rule mmQTLcollate:
     params:
         script="scripts/collate_mmQTL.R",
         prefix=mmQTL_tmp_folder,
-        geno_folder=genoFolder
+        geno_folder=genoFolder,
+        QTL_type=QTL_type
     run:
         shell(
             """
             ml {R_VERSION};
             Rscript {params.script} --prefix {params.prefix} --chrom {wildcards.CHROM} \
-            --metadata {input.meta} --geno {params.geno_folder} --eQTL_number {wildcards.PEAK}
+            --metadata {input.meta} --geno {params.geno_folder} --eQTL_number {wildcards.PEAK} \
+            --QTL_type {params.QTL_type}
             """
         )
 
