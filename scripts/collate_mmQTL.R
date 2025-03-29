@@ -18,7 +18,9 @@ option_list <- list(
    make_option(c('--metadata'), help = 'phenotype metadata file', default = ""),
    make_option(c('--geno'), help = 'path to genotype folder', default = ""),
    make_option(c('--eQTL_number'), help = 'Number of eQTL peaks', default = 1),
-   make_option(c('--QTL_type'), help = 'cis or trans', default = "cis")
+   make_option(c('--QTL_type'), help = 'cis or trans', default = "cis"),
+   make_option(c('--crossmap_file'), help = 'file with crossmap gene-gene information for trans-QTLs', default = ""),
+   make_option(c('--snp_to_closest_feature_file'), help = 'file mapping SNPs to their closest feature', default = "")
 )
 
 option.parser <- OptionParser(option_list=option_list)
@@ -110,6 +112,21 @@ dummy_cols <- setNames(data.frame(matrix(ncol = length(all_cols), nrow = 1)), al
 
 top_assoc <- list()
 
+# Loading cross-map stats for trans, and snp to closest feature mapping file
+
+if (QTL_type == "trans") {
+   
+   if (!file.exists(opt$crossmap_file) || !file.exists(opt$snp_to_closest_feature_file)) {
+    stop("Crossmap or SNP-to-closest-feature file not found.")
+   }
+
+   crossmap <- read_tsv(opt$crossmap_file, col_names = F)
+   colnames(crossmap) <- c("snp_closest_feature", "feature", "crossmap")
+   
+   snp_to_closest_feature <- read_tsv(opt$snp_to_closest_feature_file, col_names = F)
+   colnames(snp_to_closest_feature) <- c("variant_id", "snp_closest_feature")
+}
+ 
 # Process each feature
 for (feature in features_loc) {
   message(" * Processing feature: ", feature)
@@ -135,7 +152,11 @@ for (feature in features_loc) {
   if (QTL_type == "cis") {
     write_tsv(d, out_file, col_names = FALSE)
   } else if (QTL_type == "trans") {
-    write_tsv(d %>% select(feature, variant_id, chr, pos, ref, alt, Random_P, Random_Z), out_file, col_names = FALSE)
+    d <- d %>%
+      select(feature, variant_id, chr, pos, ref, alt, Random_P, Random_Z) %>%
+      left_join(snp_to_closest_feature, by = "variant_id") %>%
+      left_join(crossmap, by = c("snp_closest_feature", "feature"))
+    write_tsv(d, out_file, col_names = FALSE)
   }
  
   # Store top association
