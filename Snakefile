@@ -673,11 +673,12 @@ rule topCollate:
         mmQTL_folder + dataCode + "_peak_{PEAK}_top_assoc.tsv.gz"
     params:
         script="scripts/collate_top_chrom.R",
-        prefix=mmQTL_tmp_folder
+        prefix=mmQTL_tmp_folder,
+        QTL_type=QTL_type
     shell:
         """
         ml {R_VERSION};
-        Rscript {params.script} --output_file {output} --prefix {params.prefix} --eQTL_number {wildcards.PEAK}
+        Rscript {params.script} --output_file {output} --prefix {params.prefix} --eQTL_number {wildcards.PEAK} --QTL_type {params.QTL_type}
         """
 
 rule fullCollate:
