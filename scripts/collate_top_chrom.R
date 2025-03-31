@@ -7,7 +7,7 @@ library(tidyverse)
 option_list <- list(
    make_option(c('--output_file', '-o'), help = 'name of out file', default = "results/example/example"),
    make_option(c('--prefix', '-p'), help = 'prefix of chr specific top assoc files', default = "results/example/example"),
-   make_option(c('--QTL_number'), help = 'Number of eQTL peaks', default = 1, type = "integer"),
+   make_option(c('--QTL_number'), help = 'Number of QTL peaks', default = 1, type = "integer"),
    make_option(c('--QTL_type'), help = 'cis or trans', default = "cis")
 )
 
@@ -26,7 +26,7 @@ if (!(QTL_type %in% c("cis", "trans"))) {
 print(prefix)
 inputs <- list.files(prefix, pattern = top_pattern, recursive = FALSE, full.names = TRUE)
 
-message(" * Processing top associations for eQTL peak ", peak)
+message(" * Processing top associations for QTL peak ", peak)
 
 # Check for input files
 if (length(inputs) == 0) {

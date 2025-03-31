@@ -48,7 +48,7 @@ genoFolder = os.path.join(outFolder,"genotypes/")
 
 # QTL-mapping settings
 QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
-QTL_number = config.get("QTL_number", 1) # Number of eQTL peaks. Default to primary QTL i.e. eQTL number = 1
+QTL_number = config.get("QTL_number", 1) # Number of QTL peaks. Default to primary QTL i.e. QTL number = 1
 threads = config.get("threads", 4) # Number of threads - used to parallelize runMMQTL rule
 
 # Enforce a maximum value of 5

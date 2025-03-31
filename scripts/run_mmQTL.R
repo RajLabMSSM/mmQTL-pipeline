@@ -93,7 +93,7 @@ run_mmQTL <- function(meta_loc, j){
         " -a ", meta_chunk_file,
         " -A random ",
         " -gene ", feature_j,
-        " --QTL_number ", QTL_number,
+        " --eQTL_number ", QTL_number,
         " -V ", format(cis_window, scientific = FALSE, digits = 1),
         " --Han" # Apply Han & Eskin method to adjust results of random-effect model
     )
