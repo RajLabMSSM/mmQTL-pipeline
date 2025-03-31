@@ -8,7 +8,7 @@ library(tidyverse)
 # Define options
 option_list <- list(
   make_option(c('--chunk_meta'), help = 'chunk meta file', default = "results/example/example"),
-  make_option(c('--eQTL_number'), help = 'number of eQTL peaks', default = 1),
+  make_option(c('--QTL_number'), help = 'number of QTL peaks', default = 1),
   make_option(c('--output_file'), help = 'chunk output success dummy file', default = "results/example/example")
 )
 
@@ -18,7 +18,7 @@ opt <- parse_args(option.parser)
 
 # Assign parsed arguments to variables
 chunk_meta <- opt$chunk_meta
-eQTL_number <- as.numeric(opt$eQTL_number)
+QTL_number <- as.numeric(opt$QTL_number)
 output_file <- opt$output_file
 mmQTL_tmp_folder <- dirname(chunk_meta)
 fname <- basename(chunk_meta)
@@ -29,9 +29,9 @@ message("   - Chunk meta file: ", chunk_meta)
 message("   - Temp folder: ", mmQTL_tmp_folder)
 message("   - Output dummy file: ", output_file)
 
-# Validate eQTL_number
-if (eQTL_number < 1) {
-  stop("Error: eQTL_number must be at least 1.")
+# Validate QTL_number
+if (QTL_number < 1) {
+  stop("Error: QTL_number must be at least 1.")
 }
 
 # Read the chunk meta file
@@ -50,7 +50,7 @@ message(" * Number of features to process: ", nrow(chunk_meta))
 # Function to find and gzip relevant files for each feature
 gzip_files <- function(feature) {
   # Loop through each statistical signal index
-  for (i in seq_len(eQTL_number)) {
+  for (i in seq_len(QTL_number)) {
     # Dynamically construct file paths
     stat_file <- file.path(mmQTL_tmp_folder, feature, paste0("test_peak_", i, "_statistical_signal"))
     summary_file <- file.path(mmQTL_tmp_folder, feature, paste0("test_peak_", i, "_statistical_signal_summary_correlation"))

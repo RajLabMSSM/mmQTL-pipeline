@@ -25,7 +25,7 @@ option_list <- list(
     make_option(c('--pheno_file'), help = "path to pheno list file"),
     make_option(c('--grm_file'), help = "path to GRM list file"),
     make_option(c('--cov_file'), help = "path to covariate_file"),
-    make_option(c('--eQTL_number'), help = "0 for primary QTL, 1 for primary + secondary QTL, 3 for ... you guessed it right :)",  default = 0),
+    make_option(c('--QTL_number'), help = "0 for primary QTL, 1 for primary + secondary QTL, 3 for ... you guessed it right :)",  default = 0),
     make_option(c('--mmQTL'), help = "full path to MMQTL executable", default = "MMQTL26a")
 )
 
@@ -49,7 +49,7 @@ geno_file <- absPath(opt$geno_file)
 pheno_file <- absPath(opt$pheno_file)
 cov_file <- absPath(opt$cov_file)
 grm_file <- absPath(opt$grm_file)
-eQTL_number <- opt$eQTL_number
+QTL_number <- opt$QTL_number
 i_chunk <- as.numeric(opt$chunk)
 n_chunk <- as.numeric(opt$chunk_total)
 prefix <- absPath(opt$prefix)
@@ -93,7 +93,7 @@ run_mmQTL <- function(meta_loc, j){
         " -a ", meta_chunk_file,
         " -A random ",
         " -gene ", feature_j,
-        " --eQTL_number ", eQTL_number,
+        " --QTL_number ", QTL_number,
         " -V ", format(cis_window, scientific = FALSE, digits = 1),
         " --Han" # Apply Han & Eskin method to adjust results of random-effect model
     )

@@ -48,12 +48,12 @@ genoFolder = os.path.join(outFolder,"genotypes/")
 
 # QTL-mapping settings
 QTL_type = config.get("QTL_type", "cis")  # Default to "cis" if not defined, set "trans" to run trans-QTL pipeline
-eQTL_number = config.get("eQTL_number", 1) # Number of eQTL peaks. Default to primary QTL i.e. eQTL number = 1
+QTL_number = config.get("QTL_number", 1) # Number of eQTL peaks. Default to primary QTL i.e. eQTL number = 1
 threads = config.get("threads", 4) # Number of threads - used to parallelize runMMQTL rule
 
 # Enforce a maximum value of 5
-if eQTL_number > 5:
-    eQTL_number = 5
+if QTL_number > 5:
+    QTL_number = 5
 
 variants_to_extract = config.get("variantsToExtract", "/dev/null") # Default to all variants by supplying empty file
 
@@ -135,7 +135,7 @@ def write_list_to_file(my_list, file_name):
 
 rule all:
     input:
-        expand(mmQTL_folder + dataCode + "_peak_{PEAK}_full_assoc.tsv.gz", PEAK=range(1, eQTL_number + 1))
+        expand(mmQTL_folder + dataCode + "_peak_{PEAK}_full_assoc.tsv.gz", PEAK=range(1, QTL_number + 1))
 
 #1. Make sample key 
 
@@ -596,7 +596,7 @@ rule runMMQTL:
     params:
         script = "scripts/run_mmQTL.R",
         prefix = mmQTL_tmp_folder,
-        eQTL_number = eQTL_number,
+        QTL_number = QTL_number,
         threads = threads
     output:
         mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output.txt",
@@ -611,7 +611,7 @@ rule runMMQTL:
          --geno_file {mmQTL_folder}/{wildcards.CHROM}_geno_list.txt \
          --grm_file {input.grm} \
          --pheno_meta {input.pheno_meta} \
-         --eQTL_number {params.eQTL_number} \
+         --QTL_number {params.QTL_number} \
          --prefix {params.prefix} \
          --threads {params.threads} \
          --mmQTL {mmQTL_bin} \
@@ -626,9 +626,9 @@ rule gzip_results:
         mmQTL_tmp_folder + "{CHROM}_chunk_{CHUNK}_output_gzip.txt"
     params:
         script = "scripts/gzip_runMMQTL_output.R",
-        eQTL_number = eQTL_number
+        QTL_number = QTL_number
     shell:
-        "ml {R_VERSION}; Rscript {params.script} --chunk_meta {input.chunk_meta} --eQTL_number {params.eQTL_number} --output_file {output} "
+        "ml {R_VERSION}; Rscript {params.script} --chunk_meta {input.chunk_meta} --QTL_number {params.QTL_number} --output_file {output} "
 
 #10. Collate mmQTL results
 
@@ -656,7 +656,7 @@ rule mmQTLcollate:
               --chrom {wildcards.CHROM} \
               --metadata {input.meta} \
               --geno {params.geno_folder} \
-              --eQTL_number {wildcards.PEAK} \
+              --QTL_number {wildcards.PEAK} \
               --QTL_type {params.QTL_type} \
               --crossmap_file {params.crossmap_file} \
               --snp_to_closest_feature_file {params.snp_to_closest_feature_file}
@@ -678,12 +678,12 @@ rule topCollate:
     shell:
         """
         ml {R_VERSION};
-        Rscript {params.script} --output_file {output} --prefix {params.prefix} --eQTL_number {wildcards.PEAK} --QTL_type {params.QTL_type}
+        Rscript {params.script} --output_file {output} --prefix {params.prefix} --QTL_number {wildcards.PEAK} --QTL_type {params.QTL_type}
         """
 
 rule fullCollate:
     input:
-        expand(mmQTL_folder + dataCode + "_peak_{PEAK}_top_assoc.tsv.gz", PEAK=range(1, eQTL_number + 1))
+        expand(mmQTL_folder + dataCode + "_peak_{PEAK}_top_assoc.tsv.gz", PEAK=range(1, QTL_number + 1))
     output:
         gz=mmQTL_folder + dataCode + "_peak_{PEAK}_full_assoc.tsv.gz",
         tbi=mmQTL_folder + dataCode + "_peak_{PEAK}_full_assoc.tsv.gz.tbi"

@@ -17,7 +17,7 @@ option_list <- list(
    make_option(c('--chrom'), help = 'the chromosome', default = ""),
    make_option(c('--metadata'), help = 'phenotype metadata file', default = ""),
    make_option(c('--geno'), help = 'path to genotype folder', default = ""),
-   make_option(c('--eQTL_number'), help = 'Number of eQTL peaks', default = 1),
+   make_option(c('--QTL_number'), help = 'Number of QTL peaks', default = 1),
    make_option(c('--QTL_type'), help = 'cis or trans', default = "cis"),
    make_option(c('--crossmap_file'), help = 'file with crossmap gene-gene information for trans-QTLs', default = ""),
    make_option(c('--snp_to_closest_feature_file'), help = 'file mapping SNPs to their closest feature', default = "")
@@ -31,8 +31,13 @@ print(opt)
 prefix <- opt$prefix
 chrom <- opt$chrom
 pheno_meta <- opt$metadata
-peak <- as.numeric(opt$eQTL_number)
+peak <- as.numeric(opt$QTL_number)
 QTL_type <- opt$QTL_type
+
+if (!(QTL_type %in% c("cis", "trans"))) {
+  stop("QTL_type must be either 'cis' or 'trans'")
+}
+
 geno_folder <- opt$geno # Get genotype SNP coordinates
 top_file <- paste0(prefix, chrom, "_peak_", peak, "_top_assoc.tsv.gz")
 print(paste0("Output file path : ", top_file))
@@ -41,7 +46,7 @@ library(readr)
 library(purrr)
 library(dplyr)
 
-message(" * Collating for chromosome: ", chrom, ", eQTL peak: ", peak)
+message(" * Collating for chromosome: ", chrom, ", QTL peak: ", peak)
 
 meta <- read_tsv(pheno_meta, col_names = FALSE)
 names(meta)[1:4] <- c("chr", "start", "end", "feature") 
