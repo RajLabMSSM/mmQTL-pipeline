@@ -154,6 +154,7 @@ for (feature in features_loc) {
   } else if (QTL_type == "trans") {
     d <- d %>%
       select(feature, variant_id, chr, pos, ref, alt, Random_P, Random_Z) %>%
+      mutate(feature = sub("_chr[0-9]+$", "", feature)) %>%
       left_join(snp_to_closest_feature, by = "variant_id") %>%
       left_join(crossmap, by = c("snp_closest_feature", "feature"))
     write_tsv(d, out_file, col_names = FALSE)
