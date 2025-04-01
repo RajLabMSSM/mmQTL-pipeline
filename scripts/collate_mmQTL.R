@@ -125,7 +125,7 @@ if (QTL_type == "trans") {
     stop("Crossmap or SNP-to-closest-feature file not found.")
    }
 
-   crossmap <- read_tsv(opt$crossmap_file, col_names = F)
+   crossmap <- read_tsv(opt$crossmap_file)
    colnames(crossmap) <- c("snp_closest_feature", "feature", "crossmap")
    
    snp_to_closest_feature <- read_tsv(opt$snp_to_closest_feature_file, col_names = F)
@@ -180,7 +180,7 @@ if (length(top_assoc) == 0) {
   if (QTL_type == "cis") {
     write_tsv(top_res, top_file)
   } else if (QTL_type == "trans") {
-    write_tsv(top_res %>% select(feature, variant_id, chr, pos, ref, alt, Random_P, Random_Z), top_file)
+    write_tsv(top_res %>% select(feature, variant_id, chr, pos, ref, alt, Random_P, Random_Z, snp_closest_feature, crossmap), top_file)
   }
 }
 
