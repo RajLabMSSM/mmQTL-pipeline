@@ -20,7 +20,7 @@ option_list <- list(
    make_option(c('--QTL_number'), help = 'Number of QTL peaks', default = 1),
    make_option(c('--QTL_type'), help = 'cis or trans', default = "cis"),
    make_option(c('--crossmap_file'), help = 'file with crossmap gene-gene information for trans-QTLs', default = ""),
-   make_option(c('--snp_to_closest_feature_file'), help = 'file mapping SNPs to their closest feature', default = "")
+   make_option(c('--snp_to_feature_file'), help = 'file mapping SNPs to their feature within cis window', default = "")
 )
 
 option.parser <- OptionParser(option_list=option_list)
@@ -117,19 +117,19 @@ dummy_cols <- setNames(data.frame(matrix(ncol = length(all_cols), nrow = 1)), al
 
 top_assoc <- list()
 
-# Loading cross-map stats for trans, and snp to closest feature mapping file
+# Loading cross-map stats for trans, and snp to feature within cis window mapping file
 
 if (QTL_type == "trans") {
    
-   if (!file.exists(opt$crossmap_file) || !file.exists(opt$snp_to_closest_feature_file)) {
-    stop("Crossmap or SNP-to-closest-feature file not found.")
+   if (!file.exists(opt$crossmap_file) || !file.exists(opt$snp_to_feature_file)) {
+    stop("Crossmap or SNP-to-feature file not found.")
    }
 
    crossmap <- read_tsv(opt$crossmap_file)
-   colnames(crossmap) <- c("snp_closest_feature", "feature", "crossmap")
+   colnames(crossmap) <- c("snp_to_feature", "feature", "crossmap")
    
-   snp_to_closest_feature <- read_tsv(opt$snp_to_closest_feature_file, col_names = F)
-   colnames(snp_to_closest_feature) <- c("variant_id", "snp_closest_feature")
+   snp_to_feature <- read_tsv(opt$snp_to_feature_file, col_names = F)
+   colnames(snp_to_feature) <- c("variant_id", "snp_to_feature")
 }
  
 # Process each feature
@@ -156,17 +156,22 @@ for (feature in features_loc) {
   
   if (QTL_type == "cis") {
     write_tsv(d, out_file, col_names = FALSE)
+    # Store top association
+    top <- arrange(d, Random_P) %>% head(1)
   } else if (QTL_type == "trans") {
     d <- d %>%
       select(feature, variant_id, chr, pos, ref, alt, Random_P, Random_Z) %>%
-      mutate(feature = sub("_chr[0-9]+$", "", feature)) %>%
-      left_join(snp_to_closest_feature, by = "variant_id") %>%
-      left_join(crossmap, by = c("snp_closest_feature", "feature"))
+      mutate(feature = sub("_chr[0-9]+$", "", feature))
+      # %>%
+      # left_join(snp_to_feature, by = "variant_id") %>%
+      # left_join(crossmap, by = c("snp_to_feature", "feature"))
     write_tsv(d, out_file, col_names = FALSE)
+    
+    # Store top association
+    top <- arrange(d %>% select(feature, variant_id, chr, pos, ref, alt, Random_P, Random_Z),
+                   Random_P) %>% head(1)
   }
  
-  # Store top association
-  top <- arrange(d, Random_P) %>% head(1)
   top_assoc[[feature]] <- top
 }
 
@@ -177,11 +182,7 @@ if (length(top_assoc) == 0) {
 } else {
   # Combine top associations and write to file
   top_res <- bind_rows(top_assoc)
-  if (QTL_type == "cis") {
-    write_tsv(top_res, top_file)
-  } else if (QTL_type == "trans") {
-    write_tsv(top_res %>% select(feature, variant_id, chr, pos, ref, alt, Random_P, Random_Z, snp_closest_feature, crossmap), top_file)
-  }
+  write_tsv(top_res, top_file)
 }
 
 # going to keep these files for now.

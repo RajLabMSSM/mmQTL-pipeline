@@ -646,7 +646,7 @@ rule mmQTLcollate:
         geno_folder=genoFolder,
         QTL_type=QTL_type,
         crossmap_file = config["crossmap_file"],
-        snp_to_closest_feature_file = config["snp_to_closest_feature_file"]
+        snp_to_feature_file = config["snp_to_feature_file"]
     run:
         shell(
             """
@@ -659,7 +659,7 @@ rule mmQTLcollate:
               --QTL_number {wildcards.PEAK} \
               --QTL_type {params.QTL_type} \
               --crossmap_file {params.crossmap_file} \
-              --snp_to_closest_feature_file {params.snp_to_closest_feature_file}
+              --snp_to_feature_file {params.snp_to_feature_file}
             """
         )
 
