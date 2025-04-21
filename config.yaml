@@ -25,8 +25,8 @@ phenoMetaTrans: "inputs/phenotype_metadata.tsv"  # Metadata for features to test
 QTL_type: "cis"  # Set to 'cis' for cis-QTL mapping or 'trans' for trans-QTL mapping
 
 # Crossmap settings
-crossmap_file: "/dev/null" # Crossmap files with 3 columns "snp_to_feature", "feature", "crossmap" - ensure they have symmetric gene-pairs i.e. both g1-g2 and g2-g1 
-snp_to_feature_file: "/dev/null" # Mapped SNPs to the feature withing cis window file with 2 columns - "variant_id", "snp_to_feature"
+#crossmap_file: "/dev/null" # Crossmap files with 3 columns "snp_to_feature", "feature", "crossmap" - ensure they have symmetric gene-pairs i.e. both g1-g2 and g2-g1 
+#snp_to_feature_file: "/dev/null" # Mapped SNPs to the feature withing cis window file with 2 columns - "variant_id", "snp_to_feature"
 
 # Leafcutter and SUPPA settings
 leafcutter: False  # Set to true to enable leafcutter mode
