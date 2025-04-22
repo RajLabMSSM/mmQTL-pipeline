@@ -18,8 +18,8 @@ option_list <- list(
    make_option(c('--metadata'), help = 'phenotype metadata file', default = ""),
    make_option(c('--geno'), help = 'path to genotype folder', default = ""),
    make_option(c('--QTL_number'), help = 'Number of QTL peaks', default = 1),
-   make_option(c('--QTL_type'), help = 'cis or trans', default = "cis"),
-   make_option(c('--crossmap_file'), help = 'file with crossmap gene-gene information for trans-QTLs', default = ""),
+   make_option(c('--QTL_type'), help = 'cis or trans', default = "cis")
+   # make_option(c('--crossmap_file'), help = 'file with crossmap gene-gene information for trans-QTLs', default = ""),
    # make_option(c('--snp_to_feature_file'), help = 'file mapping SNPs to their feature within cis window', default = "")
 )
 

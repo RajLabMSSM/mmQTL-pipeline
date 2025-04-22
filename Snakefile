@@ -644,9 +644,7 @@ rule mmQTLcollate:
         script="scripts/collate_mmQTL.R",
         prefix=mmQTL_tmp_folder,
         geno_folder=genoFolder,
-        QTL_type=QTL_type,
-        # crossmap_file = config["crossmap_file"],
-        # snp_to_feature_file = config["snp_to_feature_file"]
+        QTL_type=QTL_type
     run:
         shell(
             """
@@ -657,9 +655,7 @@ rule mmQTLcollate:
               --metadata {input.meta} \
               --geno {params.geno_folder} \
               --QTL_number {wildcards.PEAK} \
-              --QTL_type {params.QTL_type} \
-              # --crossmap_file {params.crossmap_file} \
-              # --snp_to_feature_file {params.snp_to_feature_file}
+              --QTL_type {params.QTL_type}
             """
         )
 
@@ -689,7 +685,8 @@ rule fullCollate:
         tbi=mmQTL_folder + dataCode + "_peak_{PEAK}_full_assoc.tsv.gz.tbi"
     params:
         tsv=mmQTL_folder + dataCode + "_peak_{PEAK}_full_assoc.tsv",
-        prefix=mmQTL_tmp_folder
+        prefix=mmQTL_tmp_folder,
+        QTL_type=QTL_type
     shell:
         """
         set +o pipefail
@@ -710,7 +707,13 @@ rule fullCollate:
 
         echo "Concatenating sorted files for peak {wildcards.PEAK}"
         # Extract header and combine with sorted content
-        zcat {input} | head -1 | awk 'BEGIN{{OFS="\\t"}}NF{{NF-=1}};1' > {params.tsv}
+        
+        if [ "{params.QTL_type}" = "cis" ]; then
+          zcat {input} | head -1 | awk 'BEGIN{{OFS="\\t"}}NF{{NF-=1}};1' > {params.tsv}
+        else
+          zcat {input} | head -1 > {params.tsv}
+        fi
+        
         cat {params.prefix}/chr*_full_assoc_peak_{wildcards.PEAK}.sorted.tsv >> {params.tsv}
 
         # Clean up intermediate files
