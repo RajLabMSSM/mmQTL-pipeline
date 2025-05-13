@@ -19,8 +19,8 @@ option_list <- list(
    make_option(c('--geno'), help = 'path to genotype folder', default = ""),
    make_option(c('--QTL_number'), help = 'Number of QTL peaks', default = 1),
    make_option(c('--QTL_type'), help = 'cis or trans', default = "cis")
-   # make_option(c('--crossmap_file'), help = 'file with crossmap gene-gene information for trans-QTLs', default = ""),
-   # make_option(c('--snp_to_feature_file'), help = 'file mapping SNPs to their feature within cis window', default = "")
+   make_option(c('--crossmap_file'), help = 'file with crossmap gene-gene information for trans-QTLs', default = ""),
+   make_option(c('--snp_to_feature_file'), help = 'file mapping SNPs to their feature within cis window', default = "")
 )
 
 option.parser <- OptionParser(option_list=option_list)
@@ -119,18 +119,18 @@ top_assoc <- list()
 
 # Loading cross-map stats for trans, and snp to feature within cis window mapping file
 
-#if (QTL_type == "trans") {
-#   
-#   if (!file.exists(opt$crossmap_file) || !file.exists(opt$snp_to_feature_file)) {
-#    stop("Crossmap or SNP-to-feature file not found.")
-#   }
-#
-#   crossmap <- read_tsv(opt$crossmap_file)
-#   colnames(crossmap) <- c("snp_to_feature", "feature", "crossmap")
-#   
-#   snp_to_feature <- read_tsv(opt$snp_to_feature_file, col_names = F)
-#   colnames(snp_to_feature) <- c("variant_id", "snp_to_feature")
-#}
+if (QTL_type == "trans") {
+   
+   if (!file.exists(opt$crossmap_file) || !file.exists(opt$snp_to_feature_file)) {
+    stop("Crossmap or SNP-to-feature file not found.")
+   }
+
+   crossmap <- read_tsv(opt$crossmap_file)
+   colnames(crossmap) <- c("feature", "cis_feature", "crossmap")
+   
+   snp_to_feature <- read_tsv(opt$snp_to_feature_file, col_names = F)
+   colnames(snp_to_feature) <- c("variant_id", "cis_feature")
+}
  
 # Process each feature
 for (feature in features_loc) {
@@ -161,10 +161,13 @@ for (feature in features_loc) {
   } else if (QTL_type == "trans") {
     d <- d %>%
       select(feature, variant_id, chr, pos, ref, alt, fixed_beta, fixed_sd, Fixed_P, Random_Z, Random_P) %>%
-      mutate(feature = sub("_chr[0-9]+$", "", feature))
-      # %>%
-      # left_join(snp_to_feature, by = "variant_id") %>%
-      # left_join(crossmap, by = c("snp_to_feature", "feature"))
+      mutate(feature = sub("_chr[0-9]+$", "", feature)) %>%
+      left_join(snp_to_feature, by = "variant_id") %>%
+      left_join(crossmap, by = c("feature", "cis_feature")) %>% 
+      mutate(crossmap = ifelse(is.na(crossmap), 0, crossmap)) %>% 
+      group_by(variant_id, feature) %>%
+      slice_max(order_by = crossmap, n = 1, with_ties = FALSE) %>%
+      ungroup()
     write_tsv(d, out_file, col_names = FALSE)
     
     # Store top association
