@@ -706,7 +706,7 @@ rule fullCollate:
         for i in $chr; do 
             echo "Processing chr $i for peak {wildcards.PEAK}"
             zcat {params.prefix}/${{i}}_*_peak_{wildcards.PEAK}_all_nominal.tsv.gz > {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.tsv
-            sort --parallel=4 -k4,4n {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.tsv > {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.sorted.tsv
+            sort --parallel=4 -k3,3V -k4,4n {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.tsv > {params.prefix}/${{i}}_full_assoc_peak_{wildcards.PEAK}.sorted.tsv
         done
 
         echo "Concatenating sorted files for peak {wildcards.PEAK}"
