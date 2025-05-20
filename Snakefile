@@ -227,52 +227,19 @@ rule count_chr_pos:
         awk '{{if ($1 > 1) print $2 " " $3 " " $3}}' {output.combined_genotype_bed_with_counts} > {output.harmonized_genotype_bed} # separated CHR POS POS by using a space
         """
 
-# 2.6 Extract select set of variants
-
-rule extractVariants:
-    input:
-        geno_bed = geno_prefix + "_genotypes.tmp2.bed",
-        geno_bim = geno_prefix + "_genotypes.tmp2.bim",
-        geno_fam = geno_prefix + "_genotypes.tmp2.fam",
-        variants_to_extract = variants_to_extract
-    output:
-        filtered_bed = temp(geno_prefix + "_genotypes.filtered.bed"),
-        filtered_bim = temp(geno_prefix + "_genotypes.filtered.bim"),
-        filtered_fam = temp(geno_prefix + "_genotypes.filtered.fam")
-    params:
-        stem = geno_prefix + "_genotypes"
-    shell:
-        """
-        ml {PLINK_VERSION}
-
-        echo "Running PLINK variant extraction..."
-
-        if [ -s {input.variants_to_extract} ]; then
-            plink2 --bfile {params.stem}.tmp2 \
-                   --extract {input.variants_to_extract} \
-                   --make-bed \
-                   --out {params.stem}.filtered
-        else
-            echo "No variant list provided. Skipping extraction step."
-            cp {params.stem}.tmp2.bed {params.stem}.filtered.bed
-            cp {params.stem}.tmp2.bim {params.stem}.filtered.bim
-            cp {params.stem}.tmp2.fam {params.stem}.filtered.fam
-        fi
-        """
-
-# 2.6 Filter out singletons using the harmonized genotype bed file, and remove rare variants
+# 2.5 Filter out singletons using the harmonized genotype bed file, and remove rare variants
 
 rule removeSingletons:
     input:
         harmonized_genotype_bed = genoFolder + dataCode + "_combined_chr_pos_with_counts_without_singletons.bed",
+        geno_bed = geno_prefix + "_genotypes.tmp2.bed",
+        geno_bim = geno_prefix + "_genotypes.tmp2.bim",
+        geno_fam = geno_prefix + "_genotypes.tmp2.fam"
+    output:
         bed = geno_prefix + "_genotypes.filtered.bed",
         bim = geno_prefix + "_genotypes.filtered.bim",
-        fam = geno_prefix + "_genotypes.filtered.fam"
-    output:
-        bed = geno_prefix + "_genotypes.bed",
-        bim = geno_prefix + "_genotypes.bim",
-        fam = geno_prefix + "_genotypes.fam",
-        afreq = geno_prefix + "_genotypes.afreq"
+        fam = geno_prefix + "_genotypes.filtered.fam",
+        afreq = geno_prefix + "_genotypes.filtered.afreq"
     params:
         stem = geno_prefix + "_genotypes"
     shell:
@@ -290,11 +257,62 @@ rule removeSingletons:
             --extract range {input.harmonized_genotype_bed} \
             --keep-allele-order \
             --allow-extra-chr \
-            --bfile {params.stem}.filtered \
-            --out {params.stem}
+            --bfile {params.stem}.tmp2 \
+            --out {params.stem}.filtered
+            
+        rm {params.stem}.tmp2.fam {params.stem}.tmp2.bed {params.stem}.tmp2.bim {params.stem}.tmp2.log
         """
 
-#3. Split plink file into chromosomes
+# 3 GRM
+
+rule generateGRM:
+    input:
+        genotypes = geno_prefix + "_genotypes.filtered.afreq"
+    output:
+        geno_prefix + "_genotypes_GRM.tsv"
+    params:
+        stem = geno_prefix + "_genotypes",
+        script = "scripts/process_GRM.R"
+    shell:
+        "ml {PLINK_VERSION}; ml {R_VERSION} ; ml {GCTA_VERSION};"
+        "plink2 --bfile {params.stem}.filtered --maf 0.05 --make-bed --out {params.stem}_GCTA --human;"
+        "gcta64 --bfile {params.stem}_GCTA  --autosome --maf 0.05 --make-grm --out {params.stem}_GRM  --thread-num 20;"
+        " Rscript {params.script} --prefix {params.stem}_GRM  "
+        
+# 2.6 (optional) Extract select set of variants if provided - used for trans-QTL analysis
+
+rule extractVariants:
+    input:
+        bed = geno_prefix + "_genotypes.filtered.bed",
+        bim = geno_prefix + "_genotypes.filtered.bim",
+        fam = geno_prefix + "_genotypes.filtered.fam",
+        variants_to_extract = variants_to_extract
+    output:
+        filtered_bed = temp(geno_prefix + "_genotypes.bed"),
+        filtered_bim = temp(geno_prefix + "_genotypes.bim"),
+        filtered_fam = temp(geno_prefix + "_genotypes.fam")
+    params:
+        stem = geno_prefix + "_genotypes"
+    shell:
+        """
+        ml {PLINK_VERSION}
+
+        echo "Running PLINK variant extraction..."
+
+        if [ -s {input.variants_to_extract} ]; then
+            plink2 --bfile {params.stem}.filtered \
+                   --extract {input.variants_to_extract} \
+                   --make-bed \
+                   --out {params.stem}
+        else
+            echo "No variant list provided. Skipping extraction step."
+            cp {params.stem}.filtered.bed {params.stem}.bed
+            cp {params.stem}.filtered.bim {params.stem}.bim
+            cp {params.stem}.filtered.fam {params.stem}.fam
+        fi
+        """
+
+# 4 Split plink file into chromosomes
 rule splitPlinkChr:
     input: 
         fam = geno_prefix + "_genotypes.fam"
@@ -307,23 +325,7 @@ rule splitPlinkChr:
             shell("ml {PLINK_VERSION}; \
             plink2 --bfile {params.stem} --make-bed --chr {chrom} --out {params.stem}_{chrom}" )
 
-#4. GRM
-
-rule generateGRM:
-    input:
-        genotypes = geno_prefix + "_genotypes.afreq"
-    output:
-        geno_prefix + "_genotypes_GRM.tsv"
-    params:
-        stem = geno_prefix + "_genotypes",
-        script = "scripts/process_GRM.R"
-    shell:
-        "ml {PLINK_VERSION}; ml {R_VERSION} ; ml {GCTA_VERSION};"
-        "plink2 --bfile {params.stem} --maf 0.05 --make-bed --out {params.stem}_GCTA --human;"
-        "gcta64 --bfile {params.stem}_GCTA  --autosome --maf 0.05 --make-grm --out {params.stem}_GRM  --thread-num 20;"
-        " Rscript {params.script} --prefix {params.stem}_GRM  "
-
-#5. Normalise phenotype matrix
+# 5. Normalise phenotype matrix
 rule prepare_phenotypes:
     output:
         prefix + "_pheno.tsv.gz"
