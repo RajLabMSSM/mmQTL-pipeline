@@ -260,7 +260,7 @@ rule removeSingletons:
             --bfile {params.stem}.tmp2 \
             --out {params.stem}.filtered
             
-        rm {params.stem}.tmp2.fam {params.stem}.tmp2.bed {params.stem}.tmp2.bim {params.stem}.tmp2.log
+        rm {params.stem}.tmp2.fam {params.stem}.tmp2.bed {params.stem}.tmp2.bim
         """
 
 # 3 GRM
