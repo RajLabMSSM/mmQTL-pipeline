@@ -288,9 +288,9 @@ rule extractVariants:
         fam = geno_prefix + "_genotypes.filtered.fam",
         variants_to_extract = variants_to_extract
     output:
-        filtered_bed = temp(geno_prefix + "_genotypes.bed"),
-        filtered_bim = temp(geno_prefix + "_genotypes.bim"),
-        filtered_fam = temp(geno_prefix + "_genotypes.fam")
+        filtered_bed = geno_prefix + "_genotypes.bed",
+        filtered_bim = geno_prefix + "_genotypes.bim",
+        filtered_fam = geno_prefix + "_genotypes.fam"
     params:
         stem = geno_prefix + "_genotypes"
     shell:
