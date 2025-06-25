@@ -720,7 +720,7 @@ rule fullCollate:
           zcat {input} | head -1 > {params.tsv}
         fi
         
-        cat {params.prefix}/chr*_full_assoc_peak_{wildcards.PEAK}.sorted.tsv >> {params.tsv}
+        cat {params.prefix}/chr*_full_assoc_peak_{wildcards.PEAK}.sorted.tsv | sort --parallel=4 -k3,3V -k4,4n >> {params.tsv}
 
         # Clean up intermediate files
         rm {params.prefix}/chr*_full_assoc_peak_{wildcards.PEAK}.tsv
