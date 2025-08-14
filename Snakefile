@@ -676,11 +676,12 @@ rule topCollate:
     params:
         script="scripts/collate_top_chrom.R",
         prefix=mmQTL_tmp_folder,
+        data_key = config["dataKey"],
         QTL_type=QTL_type
     shell:
         """
         ml {R_VERSION};
-        Rscript {params.script} --output_file {output} --prefix {params.prefix} --QTL_number {wildcards.PEAK} --QTL_type {params.QTL_type}
+        Rscript {params.script} --output_file {output} --prefix {params.prefix} --QTL_number {wildcards.PEAK} --data_key {params.data_key} --QTL_type {params.QTL_type}
         """
 
 rule fullCollate:

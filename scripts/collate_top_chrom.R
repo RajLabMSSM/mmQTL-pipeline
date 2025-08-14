@@ -7,6 +7,7 @@ library(tidyverse)
 option_list <- list(
    make_option(c('--output_file', '-o'), help = 'name of out file', default = "results/example/example"),
    make_option(c('--prefix', '-p'), help = 'prefix of chr specific top assoc files', default = "results/example/example"),
+   make_option(c('--data_key'), help = 'TSV with dataset names used for column renaming', default = ""),
    make_option(c('--QTL_number'), help = 'Number of QTL peaks', default = 1, type = "integer"),
    make_option(c('--QTL_type'), help = 'cis or trans', default = "cis")
 )
@@ -37,6 +38,27 @@ if (length(inputs) == 0) {
 
 # Read and combine input files
 res <- map_df(inputs, read_tsv)
+
+# Read the data_key file
+data_key <- read_tsv(opt$options$data_key)
+
+rename_columns <- function(res, data_key){
+  cohorts <- as.list(data_key$dataset)
+  naming <- function(x){
+    y <- paste0(x,c(".beta",".sd",".z"))
+    return(y)
+  }
+  cohort_names <- unlist(lapply(cohorts, naming))
+  res_names <- c("feature","variant_id","chr","pos","ref","alt","Allele", cohort_names,
+                 "fixed_beta","fixed_sd","fixed_z","Random_Z","Fixed_P","Random_P",
+                 "Fixed_bonf","Random_bonf","Fixed_FDR","Random_FDR","qval")
+  
+  colnames(res) <- res_names
+  return(res)
+  
+}
+
+res <- rename_columns(res, data_key)
 
 if (QTL_type == "cis") {
    if (nrow(res) > 1) {
