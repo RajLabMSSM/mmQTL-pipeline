@@ -89,7 +89,7 @@ files_loc <- all_files[dirname(all_files) %in% meta_loc$feature]
 if (length(files_loc) == 0) {
   message("WARNING: No files found for peak ", peak, " on chromosome ", chrom)
   file.create(top_file)  # Write empty file and exit
-  next
+  stop
 }
 
 features_loc <- dirname(files_loc)
