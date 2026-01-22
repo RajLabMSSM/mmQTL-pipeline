@@ -58,9 +58,10 @@ rename_columns <- function(res, data_key){
   
 }
 
-res <- rename_columns(res, data_key)
-
 if (QTL_type == "cis") {
+   
+   res <- rename_columns(res, data_key)
+  
    if (nrow(res) > 1) {
      res$Random_Bonf_FDR <- p.adjust(res$Random_bonf, method = "fdr")
    } else {
