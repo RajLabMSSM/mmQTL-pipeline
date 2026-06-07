@@ -11,6 +11,7 @@
 ## concatenate all the pieces into a single chromosome file
 
 library(optparse)
+library(parallel)
 
 option_list <- list(
    make_option(c('--prefix'), help = 'stem of out file', default = "results/example/example"),
@@ -20,7 +21,8 @@ option_list <- list(
    make_option(c('--QTL_number'), help = 'Number of QTL peaks', default = 1),
    make_option(c('--QTL_type'), help = 'cis or trans', default = "cis"),
    make_option(c('--crossmap_file'), help = 'file with crossmap gene-gene information for trans-QTLs', default = ""),
-   make_option(c('--snp_to_feature_file'), help = 'file mapping SNPs to their feature within cis window', default = "")
+   make_option(c('--snp_to_feature_file'), help = 'file mapping SNPs to their feature within cis window', default = ""),
+   make_option(c('--threads'), help = "number of threads for parallelization", default = 4)
 )
 
 option.parser <- OptionParser(option_list=option_list)
@@ -33,6 +35,11 @@ chrom <- opt$chrom
 pheno_meta <- opt$metadata
 peak <- as.numeric(opt$QTL_number)
 QTL_type <- opt$QTL_type
+
+num_cores <- as.numeric(opt$threads)  # Capture the number of threads
+
+# Print the number of cores being used
+message("Using ", num_cores, " cores for parallel processing")
 
 if (!(QTL_type %in% c("cis", "trans"))) {
   stop("QTL_type must be either 'cis' or 'trans'")
@@ -132,20 +139,23 @@ if (QTL_type == "trans") {
    colnames(snp_to_feature) <- c("variant_id", "cis_feature")
 }
  
-# Process each feature
-for (feature in features_loc) {
+# Process features parallelly
+process_feature <- function(feature) {
   message(" * Processing feature: ", feature)
   
   d <- read_tsv(files_loc[feature], col_types = list(Allele = "c"))
   
   # ignore empty or malformed files
-  if (nrow(d) == 0 || !"fixed_z" %in% names(d)) next
+  if (nrow(d) == 0 || !"fixed_z" %in% names(d)) return(NULL)
   
   # standardise columns
   d <- bind_rows(dummy_cols, d)[2:nrow(d), ]
   d$feature <- feature
+  
   # add in SNP info
-  d <- d %>% left_join(bim_res, by = "Variant") %>% arrange(pos) %>%
+  d <- d %>%
+    left_join(bim_res, by = "Variant") %>%
+    arrange(pos) %>%
     select(feature, variant_id = Variant, chr, pos, ref, alt, everything())
   
   # add P values
@@ -156,8 +166,8 @@ for (feature in features_loc) {
   
   if (QTL_type == "cis") {
     write_tsv(d, out_file, col_names = FALSE)
-    # Store top association
     top <- arrange(d, Random_P) %>% head(1)
+    
   } else if (QTL_type == "trans") {
     d <- d %>%
       select(feature, variant_id, chr, pos, ref, alt, fixed_beta, fixed_sd, Fixed_P, Random_Z, Random_P) %>%
@@ -168,15 +178,33 @@ for (feature in features_loc) {
       group_by(variant_id, feature) %>%
       slice_max(order_by = crossmap, n = 1, with_ties = FALSE) %>%
       ungroup()
+    
     write_tsv(d, out_file, col_names = FALSE)
     
     # Store top association
-    top <- arrange(d %>% select(feature, variant_id, chr, pos, ref, alt, fixed_beta, fixed_sd, Fixed_P, Random_Z, Random_P, cis_feature, crossmap),
-                   Random_P) %>% head(1)
+    top <- arrange(
+      d %>% select(feature, variant_id, chr, pos, ref, alt, fixed_beta, fixed_sd, Fixed_P, Random_Z, Random_P, cis_feature, crossmap),
+      Random_P
+    ) %>% head(1)
   }
- 
-  top_assoc[[feature]] <- top
+  
+  list(feature = feature, top = top)
 }
+
+res_list <- mclapply(
+  features_loc,
+  process_feature,
+  mc.cores = min(num_cores, length(features_loc))
+)
+
+# keep only successful results
+res_list <- Filter(Negate(is.null), res_list)
+
+# rebuild top_assoc as a named list
+top_assoc <- setNames(
+  lapply(res_list, `[[`, "top"),
+  vapply(res_list, `[[`, character(1), "feature")
+)
 
 # Combine and write top associations for current peak
 if (length(top_assoc) == 0) {

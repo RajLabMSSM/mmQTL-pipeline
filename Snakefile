@@ -55,6 +55,9 @@ threads = config.get("threads", 4) # Number of threads - used to parallelize run
 if QTL_number > 5:
     QTL_number = 5
 
+# Collate threads
+threads_collate = config.get("threads_collate", 4) # Number of threads - used to parallelize mmQTLcollate rule
+
 variants_to_extract = config.get("variantsToExtract", "/dev/null") # Default to all variants by supplying empty file
 
 phenoMeta = config.get('phenoMeta', "")
@@ -648,7 +651,8 @@ rule mmQTLcollate:
         geno_folder=genoFolder,
         QTL_type=QTL_type,
         crossmap_file = config["crossmap_file"],
-        snp_to_feature_file = config["snp_to_feature_file"]
+        snp_to_feature_file = config["snp_to_feature_file"],
+        threads_collate = threads_collate
     run:
         shell(
             """
@@ -661,7 +665,8 @@ rule mmQTLcollate:
               --QTL_number {wildcards.PEAK} \
               --QTL_type {params.QTL_type} \
               --crossmap_file {params.crossmap_file} \
-              --snp_to_feature_file {params.snp_to_feature_file}
+              --snp_to_feature_file {params.snp_to_feature_file} \
+              --threads {params.threads_collate}
             """
         )
 

@@ -63,6 +63,7 @@ mmQTLcollate:
   time: '24:00'
   cores: 8
   mem: 3000
+  threads: 4
   queue: premium
 
 topCollate:
