@@ -11,7 +11,7 @@ PLINK_version: "plink2/2.3"
 TABIX_version: "tabix/0.2.6"
 BCFTOOLS_version: "bcftools/1.9"
 GCTA_version: "gcta/1.94.1"
-mmQTL_bin: "/sc/arion/projects/bigbrain/MMQTL26a"
+mmQTL_bin: "scripts/MMQTL26_DAK" # scripts/MMQTL26a for Zeng/Han&Eskin implementation, scripts/MMQTL26_DAK for DAK/Wald RE implementation
 
 # Genotype data
 variantsToExtract: "/dev/null"              # File with a list of variant IDs to extract (optional) - default supplies empty file
