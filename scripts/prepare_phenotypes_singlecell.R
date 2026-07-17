@@ -35,14 +35,14 @@ option_list <- list(
 option.parser <- OptionParser(option_list=option_list)
 opt <- parse_args(option.parser)
 
-# path_dir <- '/sc/arion/projects/bigbrain/data/ROSMAP/analysis/mmQTL-pipeline/'
-# sample_key <- '/sc/arion/projects/bigbrain/data/ROSMAP/analysis/QTL-mapping-pipeline/input_files/ROSMAP_sample_key_EUR_Microglia.txt'
-# pheno_matrix <- '/sc/arion/projects/bigbrain/data/ROSMAP/analysis/rds_cell/rosmap_Microglia_RNA_mean.tsv'
-# pheno_meta <- '/sc/arion/projects/bigbrain/gencode.v38.annotation_gene_pheno_meta.tsv'
+# path_dir <- 'bigbrain/data/ROSMAP/analysis/mmQTL-pipeline/'
+# sample_key <- 'bigbrain/data/ROSMAP/analysis/QTL-mapping-pipeline/input_files/ROSMAP_sample_key_EUR_Microglia.txt'
+# pheno_matrix <- 'bigbrain/data/ROSMAP/analysis/rds_cell/rosmap_Microglia_RNA_mean.tsv'
+# pheno_meta <- 'bigbrain/gencode.v38.annotation_gene_pheno_meta.tsv'
 # group <- 'FALSE'
 # min_threshold <- 10
 # min_fraction <- 0
-# counts <- '/sc/arion/projects/bigbrain/data/ROSMAP/analysis/rds_cell/rosmap_Microglia_End_counts.tsv'
+# counts <- 'bigbrain/data/ROSMAP/analysis/rds_cell/rosmap_Microglia_End_counts.tsv'
 # prefix <- 
 
 sample_key <- opt$key

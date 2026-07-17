@@ -12,7 +12,7 @@ PLINK_VERSION = config.get("PLINK_version", "plink2/2.3")
 TABIX_VERSION = config.get("TABIX_version", "tabix/0.2.6")
 BCFTOOLS_VERSION = config.get("BCFTOOLS_version", "bcftools/1.9")
 GCTA_VERSION = config.get("GCTA_version", "gcta/1.94.1")
-mmQTL_bin = config.get("mmQTL_bin", "/sc/arion/projects/bigbrain/MMQTL26a")
+mmQTL_bin = config.get("mmQTL_bin", "scripts/MMQTL26_DAK")
 
 # how many chunks?
 chunk_factor = 15
